@@ -1,5 +1,10 @@
 node_modules/
 .expo/
+
+# Android — never commit generated autolinking (breaks EAS/Linux if paths are from Windows)
+android/build/
+android/.gradle/
+android/app/build/
 dist/
 npm-debug.*
 *.jks
