@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "Zovibe",
+    "slug": "zovibe",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "backgroundColor": "#0D0D1A"
+    },
+    "ios": {
+      "bundleIdentifier": "com.zovibe.app",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "audio"
+        ],
+        "NSAllowsArbitraryLoads": true
+      }
+    },
+    "android": {
+      "package": "com.zovibe.app",
+      "usesCleartextTraffic": true,
+      "permissions": [
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ]
+    },
+    "plugins": [
+      "expo-dev-client",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true,
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "1db7c8be-cc4b-4b66-a8d2-4fe0a03f39db"
+      }
+    }
+  }
+}
