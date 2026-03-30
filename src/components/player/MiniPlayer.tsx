@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { usePlayerStore } from '../../store/playerStore';
 import { usePlayer } from '../../hooks/usePlayer';
 import { CoverImage } from '../ui/CoverImage';
+import { getPrimaryArtistNames } from '../../utils/songHelpers';
 import { colors, fonts, fontSize, spacing, borderRadius, layout } from '../../theme';
 
 export function MiniPlayer({ onExpand }: { onExpand: () => void }) {
@@ -27,7 +28,7 @@ export function MiniPlayer({ onExpand }: { onExpand: () => void }) {
             {current.name}
           </Text>
           <Text style={styles.sub} numberOfLines={1}>
-            {current.artists.primary.map((a) => a.name).join(', ')}
+            {getPrimaryArtistNames(current)}
           </Text>
         </View>
         <Pressable onPress={() => void togglePlay()} hitSlop={8}>

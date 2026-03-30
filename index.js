@@ -7,7 +7,7 @@ async function PlaybackService() {
   TrackPlayer.addEventListener('remote-pause', () => TrackPlayer.pause());
   TrackPlayer.addEventListener('remote-next', () => TrackPlayer.skipToNext());
   TrackPlayer.addEventListener('remote-previous', () => TrackPlayer.skipToPrevious());
-  TrackPlayer.addEventListener('remote-stop', () => TrackPlayer.destroy());
+  TrackPlayer.addEventListener('remote-stop', () => TrackPlayer.reset());
 }
 
 TrackPlayer.registerPlaybackService(() => PlaybackService);

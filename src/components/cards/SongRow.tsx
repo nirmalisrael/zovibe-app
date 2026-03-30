@@ -4,6 +4,7 @@ import type { JioSaavnSong } from '../../api/jiosaavn';
 import { CoverImage } from '../ui/CoverImage';
 import { LanguageBadge } from '../ui/LanguageBadge';
 import { formatTime } from '../../utils/formatTime';
+import { getPrimaryArtistNames } from '../../utils/songHelpers';
 import { colors, fonts, fontSize, spacing, borderRadius } from '../../theme';
 
 export function SongRow({
@@ -23,7 +24,7 @@ export function SongRow({
   showLike?: boolean;
   onLongPress?: () => void;
 }) {
-  const artist = song.artists.primary.map((a) => a.name).join(', ');
+  const artist = getPrimaryArtistNames(song);
   return (
     <Pressable style={styles.row} onPress={onPress} onLongPress={onLongPress}>
       {index != null ? (

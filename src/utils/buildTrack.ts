@@ -1,6 +1,7 @@
 import type { Track } from 'react-native-track-player';
 import type { JioSaavnSong } from '../api/jiosaavn';
 import { getStreamUrl, getCoverUrl, type AudioQualityPreference } from '../api/stream';
+import { getPrimaryArtistNames, getAlbumNameSafe } from './songHelpers';
 
 export function buildTrack(
   song: JioSaavnSong,
@@ -9,9 +10,9 @@ export function buildTrack(
   return {
     id: song.id,
     url: getStreamUrl(song, audioQuality),
-    title: song.name,
-    artist: song.artists.primary.map((a) => a.name).join(', '),
-    album: song.album.name,
+    title: song.name ?? 'Unknown track',
+    artist: getPrimaryArtistNames(song),
+    album: getAlbumNameSafe(song),
     artwork: getCoverUrl(song, '500x500'),
     duration: song.duration,
   };

@@ -53,7 +53,6 @@ async function setupPlayer() {
       Capability.Stop,
       Capability.SeekTo,
     ],
-    compactCapabilities: [Capability.Play, Capability.Pause, Capability.SkipToNext],
     notificationCapabilities: [
       Capability.Play,
       Capability.Pause,

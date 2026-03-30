@@ -24,6 +24,7 @@ import { ProgressBar } from '../components/player/ProgressBar';
 import { PlayerControls } from '../components/player/PlayerControls';
 import { VolumeSlider } from '../components/player/VolumeSlider';
 import { formatTime } from '../utils/formatTime';
+import { getPrimaryArtistNames } from '../utils/songHelpers';
 import { getCoverUrl } from '../api/stream';
 import type { MainAppStackParamList } from '../navigation/types';
 import { colors, fonts, fontSize, spacing, borderRadius, layout } from '../theme';
@@ -90,9 +91,7 @@ export function NowPlayingScreen() {
             <View style={styles.titleRow}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.title}>{current.name}</Text>
-                <Text style={styles.artist}>
-                  {current.artists.primary.map((a) => a.name).join(', ')}
-                </Text>
+                <Text style={styles.artist}>{getPrimaryArtistNames(current)}</Text>
                 <LanguageBadge language={current.language || 'music'} />
               </View>
               {userId ? (
