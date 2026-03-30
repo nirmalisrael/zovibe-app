@@ -1,29 +1,13 @@
 import { MOCKAPI_BASE } from '../constants/api';
 import { utf8ToBase64 } from '../utils/encoding';
+import type { UserEntity } from '../entities/user';
+import type { PlaylistEntity } from '../entities/playlist';
+import { initialsFromFullName } from '../entities/user';
 
 const BASE = MOCKAPI_BASE;
 
-export interface MockAPIUser {
-  id: string;
-  username: string;
-  email: string;
-  password: string;
-  avatar: string;
-  createdAt: string;
-  likedSongs: string;
-  recentlyPlayed: string;
-  playlists: string;
-}
-
-export interface MockAPIPlaylistRow {
-  id: string;
-  userId: string;
-  name: string;
-  description: string;
-  songIds: string;
-  coverUrl: string;
-  createdAt: string;
-}
+export type MockAPIUser = UserEntity;
+export type MockAPIPlaylistRow = PlaylistEntity;
 
 export function parseJsonArray<T>(raw: string, fallback: T[]): T[] {
   try {
@@ -34,20 +18,33 @@ export function parseJsonArray<T>(raw: string, fallback: T[]): T[] {
   }
 }
 
-export async function registerUser(username: string, email: string, password: string): Promise<MockAPIUser> {
-  const existing = (await fetch(`${BASE}/users?username=${encodeURIComponent(username)}`).then((r) =>
+export async function registerUser(
+  fullName: string,
+  username: string,
+  email: string,
+  password: string
+): Promise<MockAPIUser> {
+  const u = username.trim().toLowerCase();
+  if (/\s/.test(u)) throw new Error('Username cannot contain spaces');
+  if (!u.length) throw new Error('Username is required');
+
+  const existing = (await fetch(`${BASE}/users?username=${encodeURIComponent(u)}`).then((r) =>
     r.json()
   )) as MockAPIUser[];
   if (Array.isArray(existing) && existing.length > 0) throw new Error('Username already taken');
+
+  const name = fullName.trim();
+  const avatar = initialsFromFullName(name || u);
 
   const res = await fetch(`${BASE}/users`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      username,
-      email,
+      name,
+      username: u,
+      email: email.trim(),
       password: utf8ToBase64(password),
-      avatar: username.slice(0, 2).toUpperCase(),
+      avatar,
       createdAt: new Date().toISOString(),
       likedSongs: '[]',
       recentlyPlayed: '[]',
@@ -59,7 +56,8 @@ export async function registerUser(username: string, email: string, password: st
 }
 
 export async function loginUser(username: string, password: string): Promise<MockAPIUser> {
-  const users = (await fetch(`${BASE}/users?username=${encodeURIComponent(username)}`).then((r) =>
+  const u = username.trim().toLowerCase();
+  const users = (await fetch(`${BASE}/users?username=${encodeURIComponent(u)}`).then((r) =>
     r.json()
   )) as MockAPIUser[];
   if (!Array.isArray(users) || users.length === 0) throw new Error('User not found');

@@ -9,9 +9,16 @@ import {
   KEY_USER_ID,
   KEY_ONBOARDING_DONE,
   KEY_LANG_PREFS,
+  KEY_HOME_LANG_FILTER,
+  setSecure,
 } from '../utils/storage';
 import { getUser } from '../api/mockapi';
 import { useAuthStore } from '../store/authStore';
+import { useSettingsStore } from '../store/settingsStore';
+import {
+  defaultHomeLanguageFilter,
+  isValidLanguageFilterId,
+} from '../constants/languages';
 
 export function SplashScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -39,6 +46,15 @@ export function SplashScreen() {
             /* ignore */
           }
         }
+        const prefsNow = useAuthStore.getState().langPrefs;
+        const homeRaw = await getSecure(KEY_HOME_LANG_FILTER);
+        let nextHome = defaultHomeLanguageFilter(prefsNow);
+        if (homeRaw && isValidLanguageFilterId(homeRaw)) {
+          nextHome = homeRaw;
+        } else {
+          await setSecure(KEY_HOME_LANG_FILTER, nextHome);
+        }
+        useSettingsStore.setState({ homeLanguageFilter: nextHome });
         if (userId) {
           try {
             const user = await getUser(userId);

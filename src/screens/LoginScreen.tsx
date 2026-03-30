@@ -50,7 +50,9 @@ export function LoginScreen() {
         </View>
         <ZInput
           label="Username"
+          placeholder="e.g. nirmalisrael"
           autoCapitalize="none"
+          autoCorrect={false}
           value={username}
           onChangeText={setUsername}
         />

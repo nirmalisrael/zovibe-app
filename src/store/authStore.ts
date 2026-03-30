@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { MockAPIUser } from '../api/mockapi';
+import { sanitizeLangPrefs } from '../constants/languages';
 
 interface AuthState {
   userId: string | null;
@@ -19,7 +20,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isAuthenticated: false,
   isGuest: false,
-  langPrefs: ['tamil', 'hindi', 'english'],
+  langPrefs: [],
   setUser: (user) =>
     set({
       userId: user.id,
@@ -34,7 +35,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         ? { isAuthenticated: false, userId: null, user: null }
         : { isAuthenticated: s.isAuthenticated }),
     })),
-  setLangPrefs: (prefs) => set({ langPrefs: prefs }),
+  setLangPrefs: (prefs) => set({ langPrefs: sanitizeLangPrefs(prefs) }),
   refreshUser: (user) => set({ user, userId: user.id }),
   logout: () =>
     set({

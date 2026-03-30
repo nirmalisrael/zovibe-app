@@ -26,7 +26,7 @@ export const MOODS: Record<
   },
   party: {
     label: 'Party',
-    labelTamil: 'பார்ட்டி',
+    labelTamil: 'பார்டி',
     color: '#EC4899',
     bg: '#1F0E20',
     searches: ['arabic kuthu', 'mass bgm remix', 'bollywood party hits', 'vijay dance'],

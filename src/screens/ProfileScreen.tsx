@@ -4,13 +4,15 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ScreenWrapper } from '../components/ui/ScreenWrapper';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
-import { deleteSecure, KEY_USER_ID } from '../utils/storage';
+import { deleteSecure, KEY_USER_ID, KEY_HOME_LANG_FILTER } from '../utils/storage';
 import { useQuery } from '@tanstack/react-query';
 import { getUserPlaylists, parseJsonArray } from '../api/mockapi';
 import { queryKeys } from '../hooks/queryKeys';
 import type { ProfileStackParamList } from '../navigation/types';
 import { colors, fonts, fontSize, spacing, borderRadius } from '../theme';
 import { navigationRef } from '../navigation/navigationRef';
+import { getProfileHomeFilterOptions, getLanguageLabel } from '../constants/languages';
+import { displayNameOrUsername, resolveUserAvatar } from '../entities';
 
 export function ProfileScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<ProfileStackParamList>>();
@@ -65,9 +67,10 @@ export function ProfileScreen() {
     <ScreenWrapper>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.avatar}>
-          <Text style={styles.ini}>{user.avatar}</Text>
+          <Text style={styles.ini}>{resolveUserAvatar(user)}</Text>
         </View>
-        <Text style={styles.un}>{user.username}</Text>
+        <Text style={styles.un}>{displayNameOrUsername(user)}</Text>
+        <Text style={styles.handle}>@{user.username}</Text>
         <Text style={styles.em}>{user.email}</Text>
         <Text style={styles.muted}>Member since {created.toLocaleDateString()}</Text>
 
@@ -105,9 +108,9 @@ export function ProfileScreen() {
         </View>
 
         <Text style={styles.sec}>Home language filter</Text>
-        {(['all', 'tamil', 'hindi', 'english'] as const).map((f) => (
+        {getProfileHomeFilterOptions().map((f) => (
           <Pressable key={f} style={styles.filterRow} onPress={() => setHomeLanguageFilter(f)}>
-            <Text style={styles.rowT}>{f.charAt(0).toUpperCase() + f.slice(1)}</Text>
+            <Text style={styles.rowT}>{getLanguageLabel(f)}</Text>
             {homeLanguageFilter === f ? <Text style={styles.check}>✓</Text> : null}
           </Pressable>
         ))}
@@ -139,7 +142,13 @@ const styles = StyleSheet.create({
   },
   ini: { fontFamily: fonts.bold, fontSize: fontSize.lg, color: colors.text.primary },
   un: { fontFamily: fonts.bold, fontSize: fontSize.lg, color: colors.text.primary },
-  em: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.text.secondary },
+  handle: {
+    fontFamily: fonts.medium,
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
+    marginTop: spacing[1],
+  },
+  em: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.text.secondary, marginTop: spacing[1] },
   stats: { flexDirection: 'row', justifyContent: 'space-around', marginVertical: spacing[6] },
   stat: { alignItems: 'center' },
   statN: { fontFamily: fonts.bold, fontSize: fontSize.xl, color: colors.brand.light },

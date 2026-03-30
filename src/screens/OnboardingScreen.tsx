@@ -7,6 +7,12 @@ import { ScreenWrapper } from '../components/ui/ScreenWrapper';
 import { colors, fonts, fontSize, spacing, borderRadius } from '../theme';
 import { setSecure, KEY_LANG_PREFS, KEY_ONBOARDING_DONE } from '../utils/storage';
 import { useAuthStore } from '../store/authStore';
+import { useSettingsStore } from '../store/settingsStore';
+import {
+  sanitizeLangPrefs,
+  defaultHomeLanguageFilter,
+  getExploreLanguagePillIds,
+} from '../constants/languages';
 
 const CARDS = [
   { id: 'tamil', title: 'Tamil music', emoji: '🎵', bg: '#1F0E20', fg: '#EC4899' },
@@ -29,12 +35,18 @@ export function OnboardingScreen() {
 
   const onContinue = async () => {
     if (!selected.length) return;
-    await setSecure(KEY_LANG_PREFS, JSON.stringify(selected));
-    setLangPrefs(selected);
+    const sanitized = sanitizeLangPrefs(selected);
+    await setSecure(KEY_LANG_PREFS, JSON.stringify(sanitized));
+    setLangPrefs(sanitized);
     if (!prefsOnly) {
       await setSecure(KEY_ONBOARDING_DONE, '1');
+      useSettingsStore.getState().setHomeLanguageFilter(defaultHomeLanguageFilter(sanitized));
       navigation.navigate('Login' as never);
     } else {
+      const cur = useSettingsStore.getState().homeLanguageFilter;
+      if (!getExploreLanguagePillIds(sanitized).includes(cur)) {
+        useSettingsStore.getState().setHomeLanguageFilter(defaultHomeLanguageFilter(sanitized));
+      }
       navigation.goBack();
     }
   };

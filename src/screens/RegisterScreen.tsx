@@ -15,6 +15,7 @@ import type { RootStackParamList } from '../navigation/types';
 export function RegisterScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const setUser = useAuthStore((s) => s.setUser);
+  const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,8 +32,12 @@ export function RegisterScreen() {
       setError('Passwords do not match');
       return;
     }
+    if (fullName.trim().length < 2) {
+      setError('Please enter your name');
+      return;
+    }
     try {
-      const user = await registerUser(username.trim(), email.trim(), password);
+      const user = await registerUser(fullName.trim(), username.trim(), email.trim(), password);
       await setSecure(KEY_USER_ID, user.id);
       setUser(user);
       navigation.reset({ index: 0, routes: [{ name: 'MainApp' }] });
@@ -49,7 +54,20 @@ export function RegisterScreen() {
         style={styles.flex}
       >
         <Text style={styles.title}>Create account</Text>
-        <ZInput label="Username" autoCapitalize="none" value={username} onChangeText={setUsername} />
+        <ZInput
+          label="Your name"
+          placeholder="e.g. Nirmal Israel"
+          value={fullName}
+          onChangeText={setFullName}
+        />
+        <ZInput
+          label="Username"
+          placeholder="e.g. nirmalisrael"
+          autoCapitalize="none"
+          autoCorrect={false}
+          value={username}
+          onChangeText={setUsername}
+        />
         <ZInput
           label="Email"
           autoCapitalize="none"

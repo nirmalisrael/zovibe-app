@@ -16,6 +16,7 @@ import { useLikedSongs } from '../hooks/useLikedSongs';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { HOME_SEEDS } from '../constants/homeSeed';
+import { resolveUserAvatar } from '../entities';
 import type { HomeStackParamList } from '../navigation/types';
 import { colors, fonts, fontSize, spacing, layout } from '../theme';
 
@@ -29,11 +30,12 @@ export function HomeScreen() {
   const { tamilAlbums, hindiAlbums, englishAlbums, trendingSongs, isLoading, isError, refetch } =
     useHomeContent();
 
-  const initials =
-    user?.avatar ?? (isGuest ? 'G' : '?');
+  const initials = user ? resolveUserAvatar(user) : isGuest ? 'G' : '?';
 
-  const showTamil = homeFilter === 'all' || homeFilter === 'tamil';
-  const showHindi = homeFilter === 'all' || homeFilter === 'hindi';
+  const showTamil =
+    homeFilter === 'all' || homeFilter === 'tamil' || homeFilter === 'indian';
+  const showHindi =
+    homeFilter === 'all' || homeFilter === 'hindi' || homeFilter === 'indian';
   const showEnglish = homeFilter === 'all' || homeFilter === 'english';
 
   return (

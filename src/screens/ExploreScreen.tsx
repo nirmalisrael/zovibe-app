@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -12,8 +12,13 @@ import { ArtistCard } from '../components/cards/ArtistCard';
 import { usePlayer } from '../hooks/usePlayer';
 import { useLikedSongs } from '../hooks/useLikedSongs';
 import { useAuthStore } from '../store/authStore';
+import { useSettingsStore } from '../store/settingsStore';
 import type { ExploreStackParamList } from '../navigation/types';
-import type { LanguageFilterId } from '../constants/languages';
+import {
+  getExploreLanguagePillIds,
+  getLanguageLabel,
+  getLanguageQuerySuffix,
+} from '../constants/languages';
 import { colors, fonts, fontSize, spacing, borderRadius, layout } from '../theme';
 
 const GENRES: {
@@ -37,16 +42,25 @@ export function ExploreScreen() {
   const { raw, setRaw, data, isPending } = useSearch(300);
   const { playQueue } = usePlayer();
   const user = useAuthStore((s) => s.user);
+  const langPrefs = useAuthStore((s) => s.langPrefs);
+  const homeLanguageFilter = useSettingsStore((s) => s.homeLanguageFilter);
+  const setHomeLanguageFilter = useSettingsStore((s) => s.setHomeLanguageFilter);
   const { isLiked, toggleLike } = useLikedSongs();
-  const [lang, setLang] = useState<LanguageFilterId>('all');
+
+  const pillIds = useMemo(() => getExploreLanguagePillIds(langPrefs), [langPrefs]);
+
+  useEffect(() => {
+    if (!pillIds.includes(homeLanguageFilter)) {
+      setHomeLanguageFilter('all');
+    }
+  }, [langPrefs, pillIds, homeLanguageFilter, setHomeLanguageFilter]);
 
   const hasQuery = raw.trim().length >= 2;
   const songs = data?.songs ?? [];
   const albums = data?.albums ?? [];
   const artists = data?.artists ?? [];
 
-  const langSuffix =
-    lang === 'tamil' ? ' tamil' : lang === 'hindi' ? ' hindi' : lang === 'english' ? ' english' : '';
+  const langSuffix = getLanguageQuerySuffix(homeLanguageFilter);
 
   return (
     <ScreenErrorBoundary>
@@ -87,14 +101,16 @@ export function ExploreScreen() {
           <ScrollView contentContainerStyle={styles.scroll}>
             <Text style={styles.filterLabel}>Language</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pills}>
-              {(['tamil', 'hindi', 'english', 'all'] as const).map((id) => (
+              {pillIds.map((id) => (
                 <Pressable
                   key={id}
-                  onPress={() => setLang(id)}
-                  style={[styles.pill, lang === id && styles.pillOn]}
+                  onPress={() => setHomeLanguageFilter(id)}
+                  style={[styles.pill, homeLanguageFilter === id && styles.pillOn]}
                 >
-                  <Text style={[styles.pillTxt, lang === id && styles.pillTxtOn]}>
-                    {id === 'all' ? 'All' : id.charAt(0).toUpperCase() + id.slice(1)}
+                  <Text
+                    style={[styles.pillTxt, homeLanguageFilter === id && styles.pillTxtOn]}
+                  >
+                    {getLanguageLabel(id)}
                   </Text>
                 </Pressable>
               ))}
