@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getArtistById, getArtistSongs, getArtistAlbums } from '../api/jiosaavn';
 import { ScreenWrapper } from '../components/ui/ScreenWrapper';
 import { ScreenErrorBoundary } from '../components/ui/ScreenErrorBoundary';
-import { LoadingSpinner } from '../components/ui/LoadingSpinner';
+import { ArtistDetailSkeleton } from '../components/ui/PageSkeletons';
 import { ErrorState } from '../components/ui/ErrorState';
 import { SongRow } from '../components/cards/SongRow';
 import { AlbumCard } from '../components/cards/AlbumCard';
@@ -43,8 +43,8 @@ export function ArtistScreen() {
 
   if (artistQ.isLoading) {
     return (
-      <ScreenWrapper>
-        <LoadingSpinner />
+      <ScreenWrapper style={{ paddingHorizontal: 0 }}>
+        <ArtistDetailSkeleton />
       </ScreenWrapper>
     );
   }

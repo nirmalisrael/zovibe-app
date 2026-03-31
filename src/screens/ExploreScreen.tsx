@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -19,6 +19,7 @@ import {
   getLanguageLabel,
   getLanguageQuerySuffix,
 } from '../constants/languages';
+import { SearchResultsSkeleton } from '../components/ui/PageSkeletons';
 import { colors, fonts, fontSize, spacing, borderRadius, layout } from '../theme';
 
 const GENRES: {
@@ -39,7 +40,7 @@ const GENRES: {
 
 export function ExploreScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<ExploreStackParamList>>();
-  const { raw, setRaw, data, isPending } = useSearch(300);
+  const { raw, setRaw, debounced, data, isPending, isFetching } = useSearch(300);
   const { playQueue } = usePlayer();
   const user = useAuthStore((s) => s.user);
   const langPrefs = useAuthStore((s) => s.langPrefs);
@@ -59,57 +60,153 @@ export function ExploreScreen() {
   const songs = data?.songs ?? [];
   const albums = data?.albums ?? [];
   const artists = data?.artists ?? [];
+  const songResults = useMemo(() => songs.slice(0, 15), [songs]);
+  const albumResults = useMemo(() => albums.slice(0, 12), [albums]);
+  const artistResults = useMemo(() => artists.slice(0, 12), [artists]);
+  const searchEmpty = songResults.length === 0 && albumResults.length === 0 && artistResults.length === 0;
 
   const langSuffix = getLanguageQuerySuffix(homeLanguageFilter);
+  const searchQueryHint = debounced.length > 0 ? debounced : raw.trim();
+
+  const onOpenAlbum = useCallback(
+    (albumId: string) => {
+      navigation.navigate('Album', { albumId });
+    },
+    [navigation]
+  );
+
+  const onOpenArtist = useCallback(
+    (artistId: string) => {
+      navigation.navigate('Artist', { artistId });
+    },
+    [navigation]
+  );
+
+  const onPressGenre = useCallback(
+    (label: string, query: string) => {
+      navigation.navigate('SearchResults', {
+        query: `${query}${langSuffix}`.trim(),
+        title: label,
+      });
+    },
+    [navigation, langSuffix]
+  );
 
   return (
     <ScreenErrorBoundary>
       <ScreenWrapper>
-        <ZInput placeholder="Search songs, albums, artists" value={raw} onChangeText={setRaw} />
+        <ZInput
+          placeholder="Search songs, albums, artists"
+          value={raw}
+          onChangeText={setRaw}
+          accessibilityLabel="Search songs, albums, and artists"
+        />
         {hasQuery ? (
-          <ScrollView contentContainerStyle={styles.scroll}>
-            {isPending ? <Text style={styles.muted}>Searching…</Text> : null}
-            <Text style={styles.h}>Songs</Text>
-            {songs.slice(0, 15).map((s) => (
-              <SongRow
-                key={s.id}
-                song={s}
-                onPress={() => void playQueue([s], 0)}
-                liked={isLiked(s.id)}
-                onToggleLike={() => user && void toggleLike(s.id, isLiked(s.id))}
-                showLike={!!user}
-              />
-            ))}
-            <Text style={styles.h}>Albums</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hRow}>
-              {albums.map((a) => (
-                <AlbumCard key={a.id} album={a} onPress={() => navigation.navigate('Album', { albumId: a.id })} />
-              ))}
-            </ScrollView>
-            <Text style={styles.h}>Artists</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hRow}>
-              {artists.map((ar) => (
-                <ArtistCard
-                  key={ar.id}
-                  artist={ar}
-                  onPress={() => navigation.navigate('Artist', { artistId: ar.id })}
-                />
-              ))}
-            </ScrollView>
+          <ScrollView
+            contentContainerStyle={styles.scroll}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+          >
+            <View style={styles.resultHead}>
+              <Text style={styles.resultHeadTxt}>Results for "{searchQueryHint}"</Text>
+              {isFetching ? <Text style={styles.resultSync}>Updating...</Text> : null}
+            </View>
+
+            {(isPending || isFetching) && searchEmpty ? (
+              <SearchResultsSkeleton />
+            ) : (
+              <>
+                {songResults.length > 0 ? (
+                  <>
+                    <Text style={styles.h}>Songs</Text>
+                    {songResults.map((s) => (
+                      <SongRow
+                        key={s.id}
+                        song={s}
+                        onPress={() => {
+                          playQueue([s], 0);
+                        }}
+                        liked={isLiked(s.id)}
+                        onToggleLike={() => {
+                          if (!user) return;
+                          toggleLike(s.id, isLiked(s.id));
+                        }}
+                        showLike={!!user}
+                      />
+                    ))}
+                  </>
+                ) : null}
+
+                {albumResults.length > 0 ? (
+                  <>
+                    <Text style={styles.h}>Albums</Text>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.hRow}
+                    >
+                      {albumResults.map((a) => (
+                        <AlbumCard key={a.id} album={a} onPress={() => onOpenAlbum(a.id)} />
+                      ))}
+                    </ScrollView>
+                  </>
+                ) : null}
+
+                {artistResults.length > 0 ? (
+                  <>
+                    <Text style={styles.h}>Artists</Text>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.hRow}
+                    >
+                      {artistResults.map((ar) => (
+                        <ArtistCard
+                          key={ar.id}
+                          artist={ar}
+                          onPress={() => onOpenArtist(ar.id)}
+                        />
+                      ))}
+                    </ScrollView>
+                  </>
+                ) : null}
+
+                {!isFetching && searchEmpty ? (
+                  <View style={styles.emptyCard}>
+                    <Text style={styles.emptyTitle}>No matches yet</Text>
+                    <Text style={styles.emptyBody}>Try artist name, album title, or a genre keyword.</Text>
+                  </View>
+                ) : null}
+              </>
+            )}
           </ScrollView>
         ) : (
-          <ScrollView contentContainerStyle={styles.scroll}>
+          <ScrollView
+            contentContainerStyle={styles.scroll}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+          >
+            <Text style={styles.kicker}>Discover</Text>
+            <Text style={styles.title}>Explore your vibe</Text>
+            <Text style={styles.subtitle}>Pick a language and jump into curated genres.</Text>
+
             <Text style={styles.filterLabel}>Language</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pills}>
               {pillIds.map((id) => (
                 <Pressable
                   key={id}
                   onPress={() => setHomeLanguageFilter(id)}
-                  style={[styles.pill, homeLanguageFilter === id && styles.pillOn]}
+                  style={({ pressed }) => [
+                    styles.pill,
+                    homeLanguageFilter === id && styles.pillOn,
+                    pressed && styles.pillPressed,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Filter Explore language: ${getLanguageLabel(id)}`}
                 >
-                  <Text
-                    style={[styles.pillTxt, homeLanguageFilter === id && styles.pillTxtOn]}
-                  >
+                  <Text style={[styles.pillTxt, homeLanguageFilter === id && styles.pillTxtOn]}>
                     {getLanguageLabel(id)}
                   </Text>
                 </Pressable>
@@ -120,13 +217,14 @@ export function ExploreScreen() {
               {GENRES.map((g) => (
                 <Pressable
                   key={g.label}
-                  style={[styles.genre, { backgroundColor: g.bg }]}
-                  onPress={() =>
-                    navigation.navigate('SearchResults', {
-                      query: g.query + langSuffix,
-                      title: g.label,
-                    })
-                  }
+                  style={({ pressed }) => [
+                    styles.genre,
+                    { backgroundColor: g.bg },
+                    pressed && styles.genrePressed,
+                  ]}
+                  onPress={() => onPressGenre(g.label, g.query)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open ${g.label} results`}
                 >
                   <Text style={[styles.genreTxt, { color: g.fg }]}>{g.label}</Text>
                 </Pressable>
@@ -141,6 +239,47 @@ export function ExploreScreen() {
 
 const styles = StyleSheet.create({
   scroll: { paddingBottom: 120 },
+  kicker: {
+    fontFamily: fonts.medium,
+    fontSize: fontSize.sm,
+    color: colors.brand.light,
+    marginTop: spacing[1],
+    letterSpacing: 0.4,
+  },
+  title: {
+    fontFamily: fonts.bold,
+    fontSize: fontSize['2xl'],
+    color: colors.text.primary,
+    marginTop: spacing[1],
+    marginBottom: spacing[1],
+  },
+  subtitle: {
+    fontFamily: fonts.regular,
+    fontSize: fontSize.sm,
+    lineHeight: 18,
+    color: colors.text.secondary,
+    marginBottom: spacing[4],
+  },
+  resultHead: {
+    marginTop: spacing[1],
+    marginBottom: spacing[2],
+    paddingHorizontal: spacing[1],
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing[2],
+  },
+  resultHeadTxt: {
+    flex: 1,
+    fontFamily: fonts.medium,
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
+  },
+  resultSync: {
+    fontFamily: fonts.medium,
+    fontSize: fontSize.xs,
+    color: colors.brand.light,
+  },
   h: {
     fontFamily: fonts.bold,
     fontSize: fontSize.lg,
@@ -149,7 +288,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing[2],
   },
   hRow: { gap: spacing[3], paddingBottom: spacing[2] },
-  muted: { color: colors.text.secondary, fontFamily: fonts.regular },
   filterLabel: {
     fontFamily: fonts.medium,
     fontSize: fontSize.md,
@@ -166,15 +304,34 @@ const styles = StyleSheet.create({
     borderColor: colors.border.default,
   },
   pillOn: { borderColor: colors.brand.primary, backgroundColor: colors.bg.tertiary },
+  pillPressed: { opacity: 0.8 },
   pillTxt: { fontFamily: fonts.medium, fontSize: fontSize.sm, color: colors.text.secondary },
   pillTxtOn: { color: colors.brand.light },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[3] },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[3], paddingRight: layout.screenPadding * 0.1 },
   genre: {
     width: '47%',
     minHeight: 70,
     borderRadius: borderRadius.md,
     padding: spacing[3],
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
+  genrePressed: { opacity: 0.86, transform: [{ scale: 0.99 }] },
   genreTxt: { fontFamily: fonts.medium, fontSize: fontSize.md },
+  emptyCard: {
+    marginTop: spacing[5],
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    backgroundColor: colors.bg.secondary,
+    borderRadius: borderRadius.lg,
+    padding: spacing[4],
+  },
+  emptyTitle: {
+    fontFamily: fonts.medium,
+    fontSize: fontSize.md,
+    color: colors.text.primary,
+    marginBottom: spacing[1],
+  },
+  emptyBody: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.text.secondary },
 });

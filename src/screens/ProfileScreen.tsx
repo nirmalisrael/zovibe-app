@@ -11,7 +11,6 @@ import { queryKeys } from '../hooks/queryKeys';
 import type { ProfileStackParamList } from '../navigation/types';
 import { colors, fonts, fontSize, spacing, borderRadius } from '../theme';
 import { navigationRef } from '../navigation/navigationRef';
-import { getProfileHomeFilterOptions, getLanguageLabel } from '../constants/languages';
 import { displayNameOrUsername, resolveUserAvatar } from '../entities';
 
 export function ProfileScreen() {
@@ -21,9 +20,6 @@ export function ProfileScreen() {
   const logout = useAuthStore((s) => s.logout);
   const audioQuality = useSettingsStore((s) => s.audioQuality);
   const setAudioQuality = useSettingsStore((s) => s.setAudioQuality);
-  const homeLanguageFilter = useSettingsStore((s) => s.homeLanguageFilter);
-  const setHomeLanguageFilter = useSettingsStore((s) => s.setHomeLanguageFilter);
-
   const likedCount = user ? parseJsonArray<string>(user.likedSongs, []).length : 0;
   const historyCount = user ? parseJsonArray<string>(user.recentlyPlayed, []).length : 0;
   const playlistsQ = useQuery({
@@ -93,7 +89,7 @@ export function ProfileScreen() {
           style={styles.row}
           onPress={() => navigation.navigate('OnboardingPrefs')}
         >
-          <Text style={styles.rowT}>Language preferences</Text>
+          <Text style={styles.rowT}>Languages & home</Text>
           <Text style={styles.rowE}>Edit</Text>
         </Pressable>
 
@@ -106,14 +102,6 @@ export function ProfileScreen() {
             trackColor={{ true: colors.brand.primary, false: colors.bg.tertiary }}
           />
         </View>
-
-        <Text style={styles.sec}>Home language filter</Text>
-        {getProfileHomeFilterOptions().map((f) => (
-          <Pressable key={f} style={styles.filterRow} onPress={() => setHomeLanguageFilter(f)}>
-            <Text style={styles.rowT}>{getLanguageLabel(f)}</Text>
-            {homeLanguageFilter === f ? <Text style={styles.check}>✓</Text> : null}
-          </Pressable>
-        ))}
 
         <Pressable style={styles.signOut} onPress={() => void onSignOut()}>
           <Text style={styles.signOutTxt}>Sign out</Text>
@@ -170,12 +158,6 @@ const styles = StyleSheet.create({
     marginTop: spacing[6],
     marginBottom: spacing[2],
   },
-  filterRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: spacing[2],
-  },
-  check: { color: colors.brand.light, fontFamily: fonts.bold },
   signOut: { marginTop: spacing[10], alignItems: 'center' },
   signOutTxt: { fontFamily: fonts.medium, fontSize: fontSize.md, color: colors.error },
 });

@@ -1,8 +1,22 @@
+/**
+ * Zovibe — Animated Splash Screen
+ *
+ * Logo: assets/images/zovibe-logo.png (transparent PNG)
+ */
+
 import { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import {
+  Animated,
+  Dimensions,
+  Easing,
+  Image,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
-import { colors, fonts, fontSize } from '../theme';
+import { colors, fonts } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 import {
   getSecure,
@@ -20,17 +34,120 @@ import {
   isValidLanguageFilterId,
 } from '../constants/languages';
 
-export function SplashScreen() {
+const LOGO_SOURCE = require('../../assets/images/zovibe-logo.png');
+
+const SPLASH_HOLD_MS = 2500;
+
+/** Splash-only: separates purple logo from background */
+const splash = {
+  /** Cooler dark so violet logo doesn’t melt into the wash */
+  bg: colors.bg.primary,
+  /** Slightly warmer/lighter disc than bg so the ring reads as a layer */
+  logoPlate: '#16122A',
+  /** Soft halo (not same solid as logo #7C3AED) */
+  glowFill: 'rgba(167, 139, 250, 0.18)',
+  glowBorder: 'rgba(199, 181, 253, 0.55)',
+} as const;
+
+type SplashScreenProps = {
+  onAnimationComplete?: () => void;
+};
+
+export function SplashScreen({ onAnimationComplete }: SplashScreenProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const setUser = useAuthStore((s) => s.setUser);
   const setLangPrefs = useAuthStore((s) => s.setLangPrefs);
-  const scale = useRef(new Animated.Value(0)).current;
-  const fade = useRef(new Animated.Value(0)).current;
+
+  const { width } = Dimensions.get('window');
+  const logoSize = Math.round(width * 0.36);
+  const glowSize = Math.round(logoSize * 1.48);
+  const plateSize = Math.round(glowSize * 1.12);
+  const glowOffset = Math.round((plateSize - glowSize) / 2);
+
+  const logoScale = useRef(new Animated.Value(0.55)).current;
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const glowOpacity = useRef(new Animated.Value(0)).current;
+  const wordOpacity = useRef(new Animated.Value(0)).current;
+  const wordTransY = useRef(new Animated.Value(14)).current;
+  const breathScale = useRef(new Animated.Value(1)).current;
+  const breathLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  const combinedScale = Animated.multiply(logoScale, breathScale);
 
   useEffect(() => {
-    Animated.spring(scale, { toValue: 1, friction: 6, useNativeDriver: true }).start();
-    Animated.timing(fade, { toValue: 1, duration: 800, useNativeDriver: true }).start();
-  }, [scale, fade]);
+    const entrance = Animated.parallel([
+      Animated.spring(logoScale, {
+        toValue: 1,
+        tension: 120,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+      Animated.timing(logoOpacity, {
+        toValue: 1,
+        duration: 380,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(glowOpacity, {
+        toValue: 1,
+        duration: 500,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]);
+
+    const wordmark = Animated.parallel([
+      Animated.timing(wordOpacity, {
+        toValue: 1,
+        duration: 420,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(wordTransY, {
+        toValue: 0,
+        duration: 420,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]);
+
+    const breathe = Animated.loop(
+      Animated.sequence([
+        Animated.timing(breathScale, {
+          toValue: 1.05,
+          duration: 1600,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(breathScale, {
+          toValue: 1,
+          duration: 1600,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    Animated.sequence([entrance, Animated.delay(120), wordmark]).start(({ finished }) => {
+      if (!finished) return;
+      breathLoopRef.current = breathe;
+      breathe.start();
+      onAnimationComplete?.();
+    });
+
+    return () => {
+      breathLoopRef.current?.stop();
+      breathLoopRef.current = null;
+    };
+  }, [
+    logoScale,
+    logoOpacity,
+    glowOpacity,
+    wordOpacity,
+    wordTransY,
+    breathScale,
+    onAnimationComplete,
+  ]);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -59,6 +176,10 @@ export function SplashScreen() {
           try {
             const user = await getUser(userId);
             setUser(user);
+            if (!onboardingDone) {
+              navigation.replace('Onboarding');
+              return;
+            }
             navigation.reset({ index: 0, routes: [{ name: 'MainApp' }] });
             return;
           } catch {
@@ -71,38 +192,128 @@ export function SplashScreen() {
           navigation.replace('Login');
         }
       })();
-    }, 2500);
+    }, SPLASH_HOLD_MS);
     return () => clearTimeout(t);
   }, [navigation, setUser, setLangPrefs]);
 
   return (
-    <View style={styles.root}>
-      <Animated.View style={{ transform: [{ scale }] }}>
-        <View style={styles.pulse} />
-      </Animated.View>
-      <Animated.Text style={[styles.mark, { opacity: fade }]}>zovibe</Animated.Text>
+    <View style={styles.container}>
+      <View style={styles.hero}>
+        {/* Fixed-size stack: halo + logo share one center; typography sits below (not inside ring) */}
+        <View style={[styles.logoCluster, { width: plateSize, height: plateSize }]}>
+          <View
+            style={[
+              styles.logoPlate,
+              {
+                width: plateSize,
+                height: plateSize,
+                borderRadius: plateSize / 2,
+              },
+            ]}
+          />
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.glow,
+              {
+                width: glowSize,
+                height: glowSize,
+                borderRadius: glowSize / 2,
+                left: glowOffset,
+                top: glowOffset,
+                opacity: glowOpacity,
+                transform: [{ scale: combinedScale }],
+              },
+            ]}
+          />
+          <Animated.View
+            style={{
+              opacity: logoOpacity,
+              transform: [{ scale: combinedScale }],
+              zIndex: 2,
+            }}
+          >
+            <Image
+              source={LOGO_SOURCE}
+              style={{ width: logoSize, height: logoSize }}
+              resizeMode="contain"
+              accessibilityLabel="Zovibe logo"
+            />
+          </Animated.View>
+        </View>
+
+        <Animated.View
+          style={[
+            styles.wordmarkBlock,
+            {
+              opacity: wordOpacity,
+              transform: [{ translateY: wordTransY }],
+            },
+          ]}
+        >
+          <Text accessibilityRole="header">
+            <Text style={styles.wordmarkCap}>Zo</Text>
+            <Text style={styles.wordmarkRest}>vibe</Text>
+          </Text>
+          <Text style={styles.tagline}>feel the rhythm</Text>
+        </Animated.View>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
+  container: {
     flex: 1,
-    backgroundColor: colors.bg.primary,
+    backgroundColor: splash.bg,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pulse: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: colors.brand.primary,
-    opacity: 0.9,
+  hero: {
+    alignItems: 'center',
   },
-  mark: {
+  logoCluster: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoPlate: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    backgroundColor: splash.logoPlate,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  },
+  glow: {
+    position: 'absolute',
+    backgroundColor: splash.glowFill,
+    borderWidth: 2,
+    borderColor: splash.glowBorder,
+  },
+  wordmarkBlock: {
     marginTop: 24,
-    fontFamily: fonts.light,
-    fontSize: fontSize['4xl'],
+    alignItems: 'center',
+  },
+  wordmarkCap: {
+    fontFamily: fonts.bold,
+    fontSize: 36,
+    letterSpacing: 1,
+    color: colors.text.primary,
+  },
+  wordmarkRest: {
+    fontFamily: fonts.medium,
+    fontSize: 34,
+    letterSpacing: 3,
     color: colors.brand.light,
+    textTransform: 'lowercase',
+  },
+  tagline: {
+    marginTop: 8,
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    letterSpacing: 2.2,
+    color: colors.accent.cyan,
+    textTransform: 'lowercase',
+    opacity: 0.9,
   },
 });

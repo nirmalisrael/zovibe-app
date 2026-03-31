@@ -5,6 +5,12 @@ function paletteFor(lang: string) {
   const l = lang.toLowerCase();
   if (l.includes('tamil')) return colors.lang.tamil;
   if (l.includes('hindi')) return colors.lang.hindi;
+  if (l.includes('telugu')) return colors.lang.telugu;
+  if (l.includes('malayalam')) return colors.lang.malayalam;
+  if (l.includes('kannada')) return colors.lang.kannada;
+  if (l.includes('punjabi')) return colors.lang.punjabi;
+  if (l.includes('bengali') || l.includes('bangla')) return colors.lang.bengali;
+  if (l.includes('marathi')) return colors.lang.marathi;
   if (l.includes('english')) return colors.lang.english;
   return colors.lang.indian;
 }

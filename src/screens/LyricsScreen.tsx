@@ -1,10 +1,11 @@
-import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { getLyrics } from '../api/jiosaavn';
 import { queryKeys } from '../hooks/queryKeys';
+import { LyricsSheetSkeleton } from '../components/ui/PageSkeletons';
 import { colors, fonts, fontSize, spacing, layout } from '../theme';
 
 export function LyricsScreen() {
@@ -24,7 +25,7 @@ export function LyricsScreen() {
           <Ionicons name="close" size={28} color={colors.text.primary} />
         </Pressable>
         {q.isLoading ? (
-          <ActivityIndicator color={colors.brand.light} style={{ marginTop: 24 }} />
+          <LyricsSheetSkeleton />
         ) : (
           <ScrollView contentContainerStyle={styles.scroll}>
             <Text style={styles.lyrics}>{q.data?.trim() || 'No lyrics available.'}</Text>

@@ -1,4 +1,4 @@
-import { Text, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQueries } from '@tanstack/react-query';
@@ -7,6 +7,7 @@ import { MOODS, type MoodType } from '../constants/moods';
 import { searchSongs } from '../api/jiosaavn';
 import type { JioSaavnSong } from '../api/jiosaavn';
 import { ScreenWrapper } from '../components/ui/ScreenWrapper';
+import { SongRowSkeleton } from '../components/ui/PageSkeletons';
 import { SongRow } from '../components/cards/SongRow';
 import { usePlayer } from '../hooks/usePlayer';
 import { useLikedSongs } from '../hooks/useLikedSongs';
@@ -38,6 +39,8 @@ export function MoodScreen() {
     }
   }
   const list = [...map.values()];
+  const moodLoading =
+    results.some((r) => r.isPending || r.isFetching) && list.length === 0;
 
   return (
     <ScreenWrapper>
@@ -47,16 +50,24 @@ export function MoodScreen() {
       <Text style={[styles.h, { color: meta.color }]}>{meta.label}</Text>
       <Text style={styles.ta}>{meta.labelTamil}</Text>
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
-        {list.map((s) => (
-          <SongRow
-            key={s.id}
-            song={s}
-            onPress={() => void playQueue([s], 0)}
-            liked={isLiked(s.id)}
-            onToggleLike={() => user && void toggleLike(s.id, isLiked(s.id))}
-            showLike={!!user}
-          />
-        ))}
+        {moodLoading ? (
+          <View>
+            {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+              <SongRowSkeleton key={i} />
+            ))}
+          </View>
+        ) : (
+          list.map((s) => (
+            <SongRow
+              key={s.id}
+              song={s}
+              onPress={() => void playQueue([s], 0)}
+              liked={isLiked(s.id)}
+              onToggleLike={() => user && void toggleLike(s.id, isLiked(s.id))}
+              showLike={!!user}
+            />
+          ))
+        )}
       </ScrollView>
     </ScreenWrapper>
   );

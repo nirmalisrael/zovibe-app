@@ -3,12 +3,13 @@ import type { MainAppStackParamList } from './types';
 import { NowPlayingScreen } from '../screens/NowPlayingScreen';
 import { LyricsScreen } from '../screens/LyricsScreen';
 import { TabsWithMiniPlayer } from './TabsWithMiniPlayer';
+import { defaultNativeStackScreenOptions } from './stackScreenOptions';
 
 const Stack = createNativeStackNavigator<MainAppStackParamList>();
 
 export function MainAppStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={defaultNativeStackScreenOptions}>
       <Stack.Screen name="Tabs" component={TabsWithMiniPlayer} />
       <Stack.Screen
         name="NowPlaying"

@@ -14,7 +14,7 @@ import {
 import { getSongById } from '../api/jiosaavn';
 import type { JioSaavnSong } from '../api/jiosaavn';
 import { ScreenWrapper } from '../components/ui/ScreenWrapper';
-import { LoadingSpinner } from '../components/ui/LoadingSpinner';
+import { PlaylistDetailSkeleton, SongRowSkeleton } from '../components/ui/PageSkeletons';
 import { ErrorState } from '../components/ui/ErrorState';
 import { SongRow } from '../components/cards/SongRow';
 import { useAuthStore } from '../store/authStore';
@@ -87,8 +87,8 @@ export function PlaylistScreen() {
 
   if (playlistsQ.isLoading || !row) {
     return (
-      <ScreenWrapper>
-        <LoadingSpinner />
+      <ScreenWrapper style={{ paddingHorizontal: 0 }}>
+        <PlaylistDetailSkeleton />
       </ScreenWrapper>
     );
   }
@@ -154,7 +154,11 @@ export function PlaylistScreen() {
       {ids.length === 0 ? (
         <Text style={styles.empty}>No songs in this playlist.</Text>
       ) : songsQ.isLoading ? (
-        <LoadingSpinner />
+        <View style={{ paddingHorizontal: layout.screenPadding, paddingBottom: 120 }}>
+          {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+            <SongRowSkeleton key={i} />
+          ))}
+        </View>
       ) : (
         <FlatList<JioSaavnSong>
           data={songs}

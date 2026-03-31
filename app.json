@@ -20,6 +20,7 @@
     },
     "android": {
       "package": "com.zovibe.app",
+      "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"

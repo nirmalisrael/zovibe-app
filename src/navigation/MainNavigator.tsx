@@ -1,3 +1,4 @@
+import { Easing } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { HomeStack } from './HomeStack';
@@ -14,6 +15,15 @@ export function MainNavigator() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
+        /** Cross-fade between tabs — RN Animated + native driver, low cost */
+        animation: 'fade',
+        transitionSpec: {
+          animation: 'timing',
+          config: {
+            duration: 240,
+            easing: Easing.out(Easing.cubic),
+          },
+        },
         tabBarStyle: {
           backgroundColor: colors.bg.surface,
           borderTopColor: colors.border.subtle,
@@ -23,6 +33,7 @@ export function MainNavigator() {
         },
         tabBarActiveTintColor: colors.brand.light,
         tabBarInactiveTintColor: '#3D3060',
+        sceneStyle: { backgroundColor: colors.bg.primary },
       }}
     >
       <Tab.Screen

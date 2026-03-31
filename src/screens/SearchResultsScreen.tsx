@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { searchAll } from '../api/jiosaavn';
 import { ScreenWrapper } from '../components/ui/ScreenWrapper';
+import { SearchResultsSkeleton } from '../components/ui/PageSkeletons';
 import { SongRow } from '../components/cards/SongRow';
 import { AlbumCard } from '../components/cards/AlbumCard';
 import { ArtistCard } from '../components/cards/ArtistCard';
@@ -41,34 +42,39 @@ export function SearchResultsScreen() {
         <Text style={styles.title}>{title ?? query}</Text>
       </View>
       <ScrollView contentContainerStyle={{ paddingHorizontal: layout.screenPadding, paddingBottom: 120 }}>
-        {q.isLoading ? <Text style={styles.muted}>Loading…</Text> : null}
-        <Text style={styles.sec}>Songs</Text>
-        {songs.map((s) => (
-          <SongRow
-            key={s.id}
-            song={s}
-            onPress={() => void playQueue([s], 0)}
-            liked={isLiked(s.id)}
-            onToggleLike={() => user && void toggleLike(s.id, isLiked(s.id))}
-            showLike={!!user}
-          />
-        ))}
-        <Text style={styles.sec}>Albums</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.h}>
-          {albums.map((a) => (
-            <AlbumCard key={a.id} album={a} onPress={() => navigation.navigate('Album', { albumId: a.id })} />
-          ))}
-        </ScrollView>
-        <Text style={styles.sec}>Artists</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.h}>
-          {artists.map((ar) => (
-            <ArtistCard
-              key={ar.id}
-              artist={ar}
-              onPress={() => navigation.navigate('Artist', { artistId: ar.id })}
-            />
-          ))}
-        </ScrollView>
+        {q.isLoading ? (
+          <SearchResultsSkeleton />
+        ) : (
+          <>
+            <Text style={styles.sec}>Songs</Text>
+            {songs.map((s) => (
+              <SongRow
+                key={s.id}
+                song={s}
+                onPress={() => void playQueue([s], 0)}
+                liked={isLiked(s.id)}
+                onToggleLike={() => user && void toggleLike(s.id, isLiked(s.id))}
+                showLike={!!user}
+              />
+            ))}
+            <Text style={styles.sec}>Albums</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.h}>
+              {albums.map((a) => (
+                <AlbumCard key={a.id} album={a} onPress={() => navigation.navigate('Album', { albumId: a.id })} />
+              ))}
+            </ScrollView>
+            <Text style={styles.sec}>Artists</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.h}>
+              {artists.map((ar) => (
+                <ArtistCard
+                  key={ar.id}
+                  artist={ar}
+                  onPress={() => navigation.navigate('Artist', { artistId: ar.id })}
+                />
+              ))}
+            </ScrollView>
+          </>
+        )}
       </ScrollView>
     </ScreenWrapper>
   );
@@ -77,7 +83,6 @@ export function SearchResultsScreen() {
 const styles = StyleSheet.create({
   head: { marginBottom: spacing[4] },
   title: { fontFamily: fonts.bold, fontSize: fontSize.xl, color: colors.text.primary, marginTop: spacing[2] },
-  muted: { color: colors.text.secondary },
   sec: { fontFamily: fonts.bold, fontSize: fontSize.lg, color: colors.text.primary, marginTop: spacing[4] },
   h: { gap: spacing[3], flexDirection: 'row' },
 });

@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../components/ui/ScreenWrapper';
 import { ScreenErrorBoundary } from '../components/ui/ScreenErrorBoundary';
-import { LoadingSpinner } from '../components/ui/LoadingSpinner';
+import { LibraryPlaylistSkeleton, SongRowSkeleton } from '../components/ui/PageSkeletons';
 import { ErrorState } from '../components/ui/ErrorState';
 import { PlaylistCard } from '../components/cards/PlaylistCard';
 import { SongRow } from '../components/cards/SongRow';
@@ -96,7 +96,7 @@ export function LibraryScreen() {
 
         {tab === 'playlists' ? (
           playlistsQ.isLoading ? (
-            <LoadingSpinner />
+            <LibraryPlaylistSkeleton />
           ) : playlistsQ.isError ? (
             <ErrorState message="Could not load playlists" onRetry={() => void playlistsQ.refetch()} />
           ) : (
@@ -121,7 +121,11 @@ export function LibraryScreen() {
           likedIds.length === 0 ? (
             <Text style={styles.empty}>Like songs from the player to see them here.</Text>
           ) : likedSongsQ.isLoading ? (
-            <LoadingSpinner />
+            <View style={{ paddingHorizontal: layout.screenPadding }}>
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <SongRowSkeleton key={i} />
+              ))}
+            </View>
           ) : (
             <FlatList<JioSaavnSong>
               contentContainerStyle={styles.list}
@@ -144,7 +148,11 @@ export function LibraryScreen() {
           historyIds.length === 0 ? (
             <Text style={styles.empty}>Play music to build your history.</Text>
           ) : historyQ.isLoading ? (
-            <LoadingSpinner />
+            <View style={{ paddingHorizontal: layout.screenPadding }}>
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <SongRowSkeleton key={i} />
+              ))}
+            </View>
           ) : (
             <FlatList<JioSaavnSong>
               contentContainerStyle={styles.list}

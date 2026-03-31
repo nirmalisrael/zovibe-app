@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#DDD6FE"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#C4B5FD"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </linearGradient>
+    <linearGradient id="g3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#A78BFA"/>
+      <stop offset="100%" stop-color="#5B21B6"/>
+    </linearGradient>
+    <linearGradient id="gc" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#67E8F9"/>
+      <stop offset="100%" stop-color="#0891B2"/>
+    </linearGradient>
+    <linearGradient id="gslash" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#DDD6FE"/>
+      <stop offset="50%" stop-color="#A78BFA"/>
+      <stop offset="100%" stop-color="#6D28D9"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="14" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="cglow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="9" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- TRANSPARENT BACKGROUND — no rect fill -->
+
+  <!-- subtle ambient glow -->
+  <ellipse cx="512" cy="500" rx="300" ry="260" fill="#7C3AED" opacity="0.06"/>
+
+  <!-- WAVE ARCS (top — sound ripple) -->
+  <path d="M 370 268 Q 512 200 654 268" stroke="#C4B5FD" stroke-width="18" stroke-linecap="round" fill="none" opacity="0.22"/>
+  <path d="M 405 232 Q 512 155 619 232" stroke="#A78BFA" stroke-width="12" stroke-linecap="round" fill="none" opacity="0.16"/>
+  <path d="M 440 200 Q 512 130 584 200" stroke="#C4B5FD" stroke-width="8" stroke-linecap="round" fill="none" opacity="0.10"/>
+
+  <!-- EQUALIZER BARS -->
+  <!-- Far left — short -->
+  <rect x="198" y="496" width="66" height="196" rx="33" fill="url(#g3)" opacity="0.72"/>
+  <!-- Left — tall -->
+  <rect x="278" y="378" width="66" height="314" rx="33" fill="url(#g2)" opacity="0.88"/>
+  <!-- Center-left — tallest, glowing -->
+  <rect x="358" y="300" width="66" height="392" rx="33" fill="url(#g1)" filter="url(#glow)"/>
+
+  <!-- CENTER DIAGONAL Z SLASH -->
+  <rect x="368" y="288" width="292" height="70" rx="35" fill="url(#gslash)" transform="rotate(-31 368 288)" filter="url(#glow)" opacity="0.96"/>
+
+  <!-- Center-right — medium -->
+  <rect x="604" y="360" width="66" height="332" rx="33" fill="url(#g2)" opacity="0.82"/>
+  <!-- Right — medium-short -->
+  <rect x="684" y="440" width="66" height="252" rx="33" fill="url(#g3)" opacity="0.65"/>
+  <!-- Far right — short -->
+  <rect x="764" y="518" width="66" height="174" rx="33" fill="url(#g3)" opacity="0.42"/>
+
+  <!-- CYAN ACCENT DOT -->
+  <circle cx="648" cy="274" r="32" fill="#06B6D4" opacity="0.15" filter="url(#cglow)"/>
+  <circle cx="648" cy="274" r="19" fill="url(#gc)" filter="url(#cglow)"/>
+  <circle cx="648" cy="274" r="8" fill="#E0F7FA" opacity="0.92"/>
+</svg>

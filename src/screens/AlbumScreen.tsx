@@ -1,4 +1,5 @@
-import { View, Text, Pressable, StyleSheet, FlatList } from 'react-native';
+import { useCallback, useMemo } from 'react';
+import { View, Text, Pressable, StyleSheet, FlatList, type ListRenderItemInfo } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
@@ -6,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getAlbumById } from '../api/jiosaavn';
 import { ScreenWrapper } from '../components/ui/ScreenWrapper';
 import { ScreenErrorBoundary } from '../components/ui/ScreenErrorBoundary';
-import { LoadingSpinner } from '../components/ui/LoadingSpinner';
+import { AlbumDetailSkeleton } from '../components/ui/PageSkeletons';
 import { ErrorState } from '../components/ui/ErrorState';
 import { CoverImage } from '../components/ui/CoverImage';
 import { LanguageBadge } from '../components/ui/LanguageBadge';
@@ -30,77 +31,169 @@ export function AlbumScreen() {
     queryFn: () => getAlbumById(albumId),
   });
 
+  const album = q.data ?? null;
+  const songs = album?.songs ?? [];
+  const imgList = album?.image ?? [];
+  const img = imgList.at(-1)?.url;
+  const primary = album?.artists?.primary?.[0];
+  const songCount = songs.length;
+  const subtitle = primary?.name ?? 'Unknown artist';
+  const canShuffle = songs.length >= 2;
+
+  const onBack = useCallback(() => {
+    navigation.goBack();
+  }, [navigation]);
+
+  const onOpenPrimaryArtist = useCallback(() => {
+    if (!primary?.id) return;
+    navigation.navigate('Artist', { artistId: primary.id });
+  }, [navigation, primary?.id]);
+
+  const onPlayAll = useCallback(() => {
+    if (!songs.length) return;
+    playQueue(songs, 0);
+  }, [playQueue, songs]);
+
+  const onShuffle = useCallback(() => {
+    if (songs.length < 2) return;
+    const shuffled = [...songs];
+    for (let i = shuffled.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    playQueue(shuffled, 0);
+  }, [playQueue, songs]);
+
+  const header = useMemo(
+    () => (
+      <View style={styles.heroWrap}>
+        <View style={styles.head}>
+          <Pressable
+            onPress={onBack}
+            hitSlop={12}
+            style={({ pressed }) => [styles.backBtn, pressed && styles.backBtnPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <Ionicons name="chevron-back" size={22} color={colors.text.primary} />
+          </Pressable>
+        </View>
+
+        <View style={styles.hero}>
+          <CoverImage uri={img} size={178} radius={borderRadius.xl} />
+          <Text style={styles.title}>{album?.name ?? 'Album'}</Text>
+          <Pressable
+            onPress={onOpenPrimaryArtist}
+            disabled={!primary?.id}
+            style={({ pressed }) => [pressed && primary?.id ? styles.artistPressed : null]}
+            accessibilityRole={primary?.id ? 'button' : undefined}
+            accessibilityLabel={primary?.id ? `Open artist ${subtitle}` : undefined}
+          >
+            <Text style={styles.sub}>{subtitle}</Text>
+          </Pressable>
+
+          <View style={styles.meta}>
+            {album?.year ? <Text style={styles.muted}>{album.year}</Text> : null}
+            <Text style={styles.muted}>{songCount} song{songCount === 1 ? '' : 's'}</Text>
+            {album?.language ? <LanguageBadge language={album.language} /> : null}
+          </View>
+
+          <View style={styles.actions}>
+            <Pressable
+              style={({ pressed }) => [styles.actBtn, pressed && styles.primaryPressed]}
+              onPress={onPlayAll}
+              accessibilityRole="button"
+              accessibilityLabel="Play all songs"
+            >
+              <Text style={styles.actTxt}>Play all</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.actBtnGhost,
+                !canShuffle && styles.disabledBtn,
+                pressed && canShuffle && styles.ghostPressed,
+              ]}
+              onPress={onShuffle}
+              disabled={!canShuffle}
+              accessibilityRole="button"
+              accessibilityLabel="Shuffle songs"
+            >
+              <Text style={[styles.actTxtGhost, !canShuffle && styles.disabledTxt]}>Shuffle</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    ),
+    [
+      onBack,
+      img,
+      album?.name,
+      onOpenPrimaryArtist,
+      primary?.id,
+      subtitle,
+      album?.year,
+      songCount,
+      album?.language,
+      onPlayAll,
+      canShuffle,
+      onShuffle,
+    ]
+  );
+
+  const renderSong = useCallback(
+    ({ item, index }: ListRenderItemInfo<(typeof songs)[number]>) => (
+      <SongRow
+        song={item}
+        index={index + 1}
+        onPress={() => {
+          playQueue(songs, index);
+        }}
+        liked={isLiked(item.id)}
+        onToggleLike={() => {
+          if (!user) return;
+          toggleLike(item.id, isLiked(item.id));
+        }}
+        showLike={!!user}
+      />
+    ),
+    [playQueue, songs, isLiked, user, toggleLike]
+  );
+
   if (q.isLoading) {
     return (
-      <ScreenWrapper>
-        <LoadingSpinner />
-      </ScreenWrapper>
+      <ScreenErrorBoundary>
+        <ScreenWrapper style={styles.screenNoPad}>
+          <AlbumDetailSkeleton />
+        </ScreenWrapper>
+      </ScreenErrorBoundary>
     );
   }
 
   if (q.isError || !q.data) {
     return (
-      <ScreenWrapper>
-        <ErrorState message="Album not found" onRetry={() => void q.refetch()} />
-      </ScreenWrapper>
+      <ScreenErrorBoundary>
+        <ScreenWrapper>
+          <ErrorState message="Album not found" onRetry={() => void q.refetch()} />
+        </ScreenWrapper>
+      </ScreenErrorBoundary>
     );
   }
 
-  const album = q.data;
-  const songs = album.songs ?? [];
-  const img = album.image?.[album.image.length - 1]?.url;
-  const primary = album.artists?.primary?.[0];
-
   return (
     <ScreenErrorBoundary>
-      <ScreenWrapper style={{ paddingHorizontal: 0 }}>
-        <View style={[styles.head, { paddingHorizontal: layout.screenPadding }]}>
-          <Pressable onPress={() => navigation.goBack()} hitSlop={12}>
-            <Ionicons name="chevron-back" size={28} color={colors.text.primary} />
-          </Pressable>
-        </View>
-        <View style={[styles.hero, { paddingHorizontal: layout.screenPadding }]}>
-          <CoverImage uri={img} size={180} radius={borderRadius.xl} />
-          <Text style={styles.title}>{album.name}</Text>
-          {primary ? (
-            <Pressable onPress={() => navigation.navigate('Artist', { artistId: primary.id })}>
-              <Text style={styles.sub}>{primary.name}</Text>
-            </Pressable>
-          ) : null}
-          <View style={styles.meta}>
-            {album.year ? <Text style={styles.muted}>{album.year}</Text> : null}
-            {album.language ? <LanguageBadge language={album.language} /> : null}
-          </View>
-          <View style={styles.actions}>
-            <Pressable style={styles.actBtn} onPress={() => songs.length && void playQueue(songs, 0)}>
-              <Text style={styles.actTxt}>Play all</Text>
-            </Pressable>
-            <Pressable
-              style={styles.actBtnGhost}
-              onPress={() => {
-                if (songs.length < 2) return;
-                const shuffled = [...songs].sort(() => Math.random() - 0.5);
-                void playQueue(shuffled, 0);
-              }}
-            >
-              <Text style={styles.actTxtGhost}>Shuffle</Text>
-            </Pressable>
-          </View>
-        </View>
+      <ScreenWrapper style={styles.screenNoPad}>
         <FlatList
           data={songs}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingHorizontal: layout.screenPadding, paddingBottom: 120 }}
-          renderItem={({ item, index }) => (
-            <SongRow
-              song={item}
-              index={index + 1}
-              onPress={() => void playQueue(songs, index)}
-              liked={isLiked(item.id)}
-              onToggleLike={() => user && void toggleLike(item.id, isLiked(item.id))}
-              showLike={!!user}
-            />
-          )}
+          ListHeaderComponent={header}
+          contentContainerStyle={styles.list}
+          renderItem={renderSong}
+          removeClippedSubviews
+          initialNumToRender={10}
+          maxToRenderPerBatch={12}
+          windowSize={8}
+          updateCellsBatchingPeriod={40}
+          showsVerticalScrollIndicator={false}
         />
       </ScreenWrapper>
     </ScreenErrorBoundary>
@@ -108,7 +201,21 @@ export function AlbumScreen() {
 }
 
 const styles = StyleSheet.create({
-  head: { marginBottom: spacing[2] },
+  screenNoPad: { paddingHorizontal: 0 },
+  list: { paddingHorizontal: layout.screenPadding, paddingBottom: 120 },
+  heroWrap: { marginBottom: spacing[2] },
+  head: { marginBottom: spacing[2], marginTop: spacing[1] },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    backgroundColor: colors.bg.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backBtnPressed: { opacity: 0.85 },
   hero: { marginBottom: spacing[4] },
   title: {
     fontFamily: fonts.bold,
@@ -117,6 +224,7 @@ const styles = StyleSheet.create({
     marginTop: spacing[4],
   },
   sub: { fontFamily: fonts.regular, fontSize: fontSize.md, color: colors.brand.light, marginTop: spacing[1] },
+  artistPressed: { opacity: 0.85 },
   meta: { flexDirection: 'row', gap: spacing[3], alignItems: 'center', marginTop: spacing[2] },
   muted: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.text.secondary },
   actions: { flexDirection: 'row', gap: spacing[3], marginTop: spacing[4] },
@@ -127,6 +235,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
   },
   actTxt: { fontFamily: fonts.medium, color: colors.text.inverse },
+  primaryPressed: { opacity: 0.88 },
   actBtnGhost: {
     borderWidth: 1,
     borderColor: colors.border.strong,
@@ -135,4 +244,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
   },
   actTxtGhost: { fontFamily: fonts.medium, color: colors.brand.light },
+  ghostPressed: { opacity: 0.86 },
+  disabledBtn: { borderColor: colors.border.default, opacity: 0.55 },
+  disabledTxt: { color: colors.text.secondary },
 });
