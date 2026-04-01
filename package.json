@@ -6,7 +6,8 @@
     "start": "expo start --dev-client",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "build:dev": "eas build --profile development --platform android"
+    "build:dev": "eas build --profile development --platform android",
+    "build:production": "eas build --profile production --platform android"
   },
   "dependencies": {
     "@expo-google-fonts/space-grotesk": "^0.2.3",

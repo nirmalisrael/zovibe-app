@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as SplashScreen from 'expo-splash-screen';
@@ -11,9 +12,12 @@ import {
   SpaceGrotesk_500Medium,
   SpaceGrotesk_700Bold,
 } from '@expo-google-fonts/space-grotesk';
-import TrackPlayer, { Capability } from 'react-native-track-player';
+import TrackPlayer, { AppKilledPlaybackBehavior, Capability } from 'react-native-track-player';
 import { RootNavigator } from './navigation/RootNavigator';
 import { navigationRef } from './navigation/navigationRef';
+import { PlaybackStoreSync } from './components/player/PlaybackStoreSync';
+import { PlaybackRemoteControls } from './components/player/PlaybackRemoteControls';
+import { AddToPlaylistProvider } from './context/AddToPlaylistContext';
 import { colors } from './theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
@@ -48,17 +52,16 @@ async function setupPlayer() {
     capabilities: [
       Capability.Play,
       Capability.Pause,
-      Capability.SkipToNext,
-      Capability.SkipToPrevious,
-      Capability.Stop,
-      Capability.SeekTo,
     ],
     notificationCapabilities: [
       Capability.Play,
       Capability.Pause,
-      Capability.SkipToNext,
-      Capability.SkipToPrevious,
     ],
+    /** Swiping the app away from Android recents stops audio + removes notification (RNTP API). */
+    android: {
+      appKilledPlaybackBehavior:
+        AppKilledPlaybackBehavior.StopPlaybackAndRemoveNotification,
+    },
     progressUpdateEventInterval: 1,
   });
   playerReady = true;
@@ -91,12 +94,18 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg.primary }}>
-      <QueryClientProvider client={queryClient}>
-        <NavigationContainer ref={navigationRef} theme={navTheme}>
-          <StatusBar style="light" />
-          <RootNavigator />
-        </NavigationContainer>
-      </QueryClientProvider>
+      <SafeAreaProvider>
+        <QueryClientProvider client={queryClient}>
+          <AddToPlaylistProvider>
+            <NavigationContainer ref={navigationRef} theme={navTheme}>
+              <StatusBar style="light" />
+              <PlaybackStoreSync />
+              <PlaybackRemoteControls />
+              <RootNavigator />
+            </NavigationContainer>
+          </AddToPlaylistProvider>
+        </QueryClientProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

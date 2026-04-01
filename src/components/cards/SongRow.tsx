@@ -1,16 +1,8 @@
-import { useEffect } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, {
-  Easing,
-  cancelAnimation,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from 'react-native-reanimated';
 import type { JioSaavnSong } from '../../api/jiosaavn';
 import { CoverImage } from '../ui/CoverImage';
+import { PlayingWaveIndicator } from '../ui/PlayingWaveIndicator';
 import { LanguageBadge } from '../ui/LanguageBadge';
 import { formatTime } from '../../utils/formatTime';
 import { getPrimaryArtistNames } from '../../utils/songHelpers';
@@ -24,6 +16,9 @@ type SongRowProps = Readonly<{
   onToggleLike?: () => void;
   liked?: boolean;
   showLike?: boolean;
+  /** Signed-in: add to a user playlist (opens picker when used with onAddToPlaylist). */
+  showAddToPlaylist?: boolean;
+  onAddToPlaylist?: () => void;
   onLongPress?: () => void;
 }>;
 
@@ -34,38 +29,14 @@ export function SongRow({
   onToggleLike,
   liked,
   showLike = true,
+  showAddToPlaylist = false,
+  onAddToPlaylist,
   onLongPress,
 }: SongRowProps) {
   const artist = getPrimaryArtistNames(song);
   const currentSongId = usePlayerStore((s) => s.currentSong?.id);
   const isPlayerRunning = usePlayerStore((s) => s.isPlaying);
   const isNowPlaying = currentSongId === song.id;
-
-  // 🎵 Wave bars animation values
-  const bar1 = useSharedValue(4);
-  const bar2 = useSharedValue(8);
-  const bar3 = useSharedValue(6);
-
-  useEffect(() => {
-    if (isNowPlaying && isPlayerRunning) {
-      bar1.value = withRepeat(withTiming(14, { duration: 400, easing: Easing.inOut(Easing.ease) }), -1, true);
-      bar2.value = withRepeat(withTiming(18, { duration: 500, easing: Easing.inOut(Easing.ease) }), -1, true);
-      bar3.value = withRepeat(withTiming(12, { duration: 450, easing: Easing.inOut(Easing.ease) }), -1, true);
-      return;
-    }
-
-    cancelAnimation(bar1);
-    cancelAnimation(bar2);
-    cancelAnimation(bar3);
-
-    bar1.value = withTiming(4);
-    bar2.value = withTiming(6);
-    bar3.value = withTiming(5);
-  }, [isNowPlaying, isPlayerRunning]);
-
-  const barStyle1 = useAnimatedStyle(() => ({ height: bar1.value }));
-  const barStyle2 = useAnimatedStyle(() => ({ height: bar2.value }));
-  const barStyle3 = useAnimatedStyle(() => ({ height: bar3.value }));
 
   return (
     <Pressable
@@ -94,11 +65,7 @@ export function SongRow({
           </Text>
           <View style={styles.subTrailing}>
             {isNowPlaying ? (
-              <View style={styles.waveContainer}>
-                <Animated.View style={[styles.bar, barStyle1]} />
-                <Animated.View style={[styles.bar, barStyle2]} />
-                <Animated.View style={[styles.bar, barStyle3]} />
-              </View>
+              <PlayingWaveIndicator active={isPlayerRunning} />
             ) : null}
             {showLike && onToggleLike ? (
               <Pressable onPress={onToggleLike} hitSlop={10} style={styles.likeBtn}>
@@ -107,6 +74,17 @@ export function SongRow({
                   size={18}
                   color={liked ? colors.accent.pink : colors.text.secondary}
                 />
+              </Pressable>
+            ) : null}
+            {showAddToPlaylist && onAddToPlaylist ? (
+              <Pressable
+                onPress={onAddToPlaylist}
+                hitSlop={10}
+                style={styles.likeBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Add to playlist"
+              >
+                <Ionicons name="add-circle-outline" size={20} color={colors.text.secondary} />
               </Pressable>
             ) : null}
             <LanguageBadge language={song.language || 'music'} />
@@ -190,18 +168,5 @@ const styles = StyleSheet.create({
 
   likeBtn: {
     padding: spacing[1],
-  },
-
-  waveContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 2,
-    height: 14,
-  },
-
-  bar: {
-    width: 2,
-    backgroundColor: colors.brand.primary,
-    borderRadius: 1,
   },
 });

@@ -1,7 +1,17 @@
 import { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, FlatList, TextInput, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  FlatList,
+  TextInput,
+  Alert,
+  RefreshControl,
+} from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -9,6 +19,7 @@ import {
   parseJsonArray,
   updatePlaylist,
   deletePlaylist,
+  removeSongFromPlaylist,
   type MockAPIPlaylistRow,
 } from '../api/mockapi';
 import { getSongById } from '../api/jiosaavn';
@@ -20,16 +31,19 @@ import { SongRow } from '../components/cards/SongRow';
 import { useAuthStore } from '../store/authStore';
 import { usePlayer } from '../hooks/usePlayer';
 import { useLikedSongs } from '../hooks/useLikedSongs';
+import { useAddToPlaylist } from '../context/AddToPlaylistContext';
 import { queryKeys } from '../hooks/queryKeys';
+import type { LibraryStackParamList, MainTabParamList } from '../navigation/types';
 import { colors, fonts, fontSize, spacing, borderRadius, layout } from '../theme';
 
 export function PlaylistScreen() {
   const route = useRoute();
-  const navigation = useNavigation<NativeStackNavigationProp<Record<string, object | undefined>>>();
+  const navigation = useNavigation<NativeStackNavigationProp<LibraryStackParamList>>();
   const { playlistId } = route.params as { playlistId: string };
   const userId = useAuthStore((s) => s.userId);
   const { playQueue } = usePlayer();
   const { isLiked, toggleLike } = useLikedSongs();
+  const { openAddToPlaylist } = useAddToPlaylist();
   const user = useAuthStore((s) => s.user);
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
@@ -67,10 +81,7 @@ export function PlaylistScreen() {
   });
 
   const removeM = useMutation({
-    mutationFn: (songId: string) => {
-      const next = ids.filter((id) => id !== songId);
-      return updatePlaylist(playlistId, { songIds: JSON.stringify(next) });
-    },
+    mutationFn: (songId: string) => removeSongFromPlaylist(playlistId, songId, ids),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.playlists(userId ?? '') });
       void qc.invalidateQueries({ queryKey: queryKeys.playlist(playlistId) });
@@ -95,6 +106,17 @@ export function PlaylistScreen() {
 
   const songs = songsQ.data ?? [];
 
+  const tabNav = navigation.getParent<BottomTabNavigationProp<MainTabParamList>>();
+  const goDiscoverMusic = () => {
+    tabNav?.navigate('ExploreTab', { screen: 'ExploreMain' });
+  };
+
+  const refreshing = playlistsQ.isFetching || songsQ.isFetching;
+  const onRefresh = () => {
+    void playlistsQ.refetch();
+    if (ids.length > 0) void songsQ.refetch();
+  };
+
   return (
     <ScreenWrapper style={{ paddingHorizontal: 0 }}>
       <View style={[styles.top, { paddingHorizontal: layout.screenPadding }]}>
@@ -114,7 +136,12 @@ export function PlaylistScreen() {
           </View>
         ) : (
           <View style={styles.titleRow}>
-            <Text style={styles.title}>{row.name}</Text>
+            <View style={styles.titleBlock}>
+              <Text style={styles.title}>{row.name}</Text>
+              <Text style={styles.trackCount}>
+                {ids.length} {ids.length === 1 ? 'track' : 'tracks'}
+              </Text>
+            </View>
             <Pressable
               onPress={() => {
                 setNameDraft(row.name);
@@ -152,7 +179,12 @@ export function PlaylistScreen() {
         </View>
       </View>
       {ids.length === 0 ? (
-        <Text style={styles.empty}>No songs in this playlist.</Text>
+        <View style={styles.emptyWrap}>
+          <Text style={styles.empty}>No songs in this playlist yet.</Text>
+          <Pressable style={styles.discoverBtn} onPress={goDiscoverMusic}>
+            <Text style={styles.discoverTxt}>Discover music</Text>
+          </Pressable>
+        </View>
       ) : songsQ.isLoading ? (
         <View style={{ paddingHorizontal: layout.screenPadding, paddingBottom: 120 }}>
           {[0, 1, 2, 3, 4, 5, 6].map((i) => (
@@ -164,6 +196,13 @@ export function PlaylistScreen() {
           data={songs}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingHorizontal: layout.screenPadding, paddingBottom: 120 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.brand.light}
+            />
+          }
           renderItem={({ item }) => (
             <SongRow
               song={item}
@@ -174,8 +213,10 @@ export function PlaylistScreen() {
               liked={isLiked(item.id)}
               onToggleLike={() => user && void toggleLike(item.id, isLiked(item.id))}
               showLike={!!user}
+              showAddToPlaylist={!!user}
+              onAddToPlaylist={() => openAddToPlaylist(item)}
               onLongPress={() =>
-                Alert.alert('Remove song', 'Remove from playlist?', [
+                Alert.alert('Remove song', 'Remove from this playlist?', [
                   { text: 'Cancel', style: 'cancel' },
                   { text: 'Remove', onPress: () => removeM.mutate(item.id) },
                 ])
@@ -202,8 +243,15 @@ const styles = StyleSheet.create({
     padding: spacing[2],
   },
   save: { fontFamily: fonts.medium, color: colors.brand.light },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], marginTop: spacing[2] },
-  title: { flex: 1, fontFamily: fonts.bold, fontSize: fontSize.xl, color: colors.text.primary },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing[3], marginTop: spacing[2] },
+  titleBlock: { flex: 1, minWidth: 0 },
+  title: { fontFamily: fonts.bold, fontSize: fontSize.xl, color: colors.text.primary },
+  trackCount: {
+    marginTop: spacing[1],
+    fontFamily: fonts.regular,
+    fontSize: fontSize.sm,
+    color: colors.text.tertiary,
+  },
   del: { marginTop: spacing[3] },
   delTxt: { fontFamily: fonts.medium, fontSize: fontSize.sm, color: colors.error },
   actions: { flexDirection: 'row', gap: spacing[3], marginTop: spacing[4] },
@@ -222,5 +270,13 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
   },
   actTxtGhost: { fontFamily: fonts.medium, color: colors.brand.light },
-  empty: { padding: spacing[6], fontFamily: fonts.regular, color: colors.text.secondary, textAlign: 'center' },
+  emptyWrap: { paddingHorizontal: layout.screenPadding, paddingVertical: spacing[6], alignItems: 'center' },
+  empty: { fontFamily: fonts.regular, color: colors.text.secondary, textAlign: 'center', marginBottom: spacing[4] },
+  discoverBtn: {
+    backgroundColor: colors.brand.primary,
+    paddingHorizontal: spacing[5],
+    paddingVertical: spacing[2],
+    borderRadius: borderRadius.md,
+  },
+  discoverTxt: { fontFamily: fonts.medium, color: colors.text.inverse },
 });

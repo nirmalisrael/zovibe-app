@@ -12,6 +12,7 @@ import { ArtistCard } from '../components/cards/ArtistCard';
 import { usePlayer } from '../hooks/usePlayer';
 import { useLikedSongs } from '../hooks/useLikedSongs';
 import { useAuthStore } from '../store/authStore';
+import { useAddToPlaylist } from '../context/AddToPlaylistContext';
 import { useSettingsStore } from '../store/settingsStore';
 import type { ExploreStackParamList } from '../navigation/types';
 import {
@@ -47,6 +48,7 @@ export function ExploreScreen() {
   const homeLanguageFilter = useSettingsStore((s) => s.homeLanguageFilter);
   const setHomeLanguageFilter = useSettingsStore((s) => s.setHomeLanguageFilter);
   const { isLiked, toggleLike } = useLikedSongs();
+  const { openAddToPlaylist } = useAddToPlaylist();
 
   const pillIds = useMemo(() => getExploreLanguagePillIds(langPrefs), [langPrefs]);
 
@@ -120,12 +122,12 @@ export function ExploreScreen() {
                 {songResults.length > 0 ? (
                   <>
                     <Text style={styles.h}>Songs</Text>
-                    {songResults.map((s) => (
+                    {songResults.map((s, index) => (
                       <SongRow
                         key={s.id}
                         song={s}
                         onPress={() => {
-                          playQueue([s], 0);
+                          void playQueue(songResults, index);
                         }}
                         liked={isLiked(s.id)}
                         onToggleLike={() => {
@@ -133,6 +135,8 @@ export function ExploreScreen() {
                           toggleLike(s.id, isLiked(s.id));
                         }}
                         showLike={!!user}
+                        showAddToPlaylist={!!user}
+                        onAddToPlaylist={() => openAddToPlaylist(s)}
                       />
                     ))}
                   </>

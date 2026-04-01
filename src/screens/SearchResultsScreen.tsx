@@ -11,6 +11,7 @@ import { AlbumCard } from '../components/cards/AlbumCard';
 import { ArtistCard } from '../components/cards/ArtistCard';
 import { usePlayer } from '../hooks/usePlayer';
 import { useLikedSongs } from '../hooks/useLikedSongs';
+import { useAddToPlaylist } from '../context/AddToPlaylistContext';
 import { useAuthStore } from '../store/authStore';
 import { queryKeys } from '../hooks/queryKeys';
 import { colors, fonts, fontSize, spacing, layout } from '../theme';
@@ -22,6 +23,7 @@ export function SearchResultsScreen() {
   const { playQueue } = usePlayer();
   const user = useAuthStore((s) => s.user);
   const { isLiked, toggleLike } = useLikedSongs();
+  const { openAddToPlaylist } = useAddToPlaylist();
 
   const q = useQuery({
     queryKey: queryKeys.search(query),
@@ -47,14 +49,16 @@ export function SearchResultsScreen() {
         ) : (
           <>
             <Text style={styles.sec}>Songs</Text>
-            {songs.map((s) => (
+            {songs.map((s, index) => (
               <SongRow
                 key={s.id}
                 song={s}
-                onPress={() => void playQueue([s], 0)}
+                onPress={() => void playQueue(songs, index)}
                 liked={isLiked(s.id)}
                 onToggleLike={() => user && void toggleLike(s.id, isLiked(s.id))}
                 showLike={!!user}
+                showAddToPlaylist={!!user}
+                onAddToPlaylist={() => openAddToPlaylist(s)}
               />
             ))}
             <Text style={styles.sec}>Albums</Text>

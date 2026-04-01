@@ -20,6 +20,10 @@
     },
     "android": {
       "package": "com.zovibe.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#0D0D1A"
+      },
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "android.permission.FOREGROUND_SERVICE",

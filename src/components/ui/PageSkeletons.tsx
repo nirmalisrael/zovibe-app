@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { LayoutChangeEvent, StyleSheet, View } from 'react-native';
+import { LayoutChangeEvent, Pressable, StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   cancelAnimation,
@@ -274,6 +275,88 @@ export function LyricsSheetSkeleton() {
   );
 }
 
+/** Full-screen now playing layout while Track Player / store syncs. */
+export function NowPlayingSkeleton({
+  paddingTop,
+  paddingBottom,
+  onClose,
+}: Readonly<{
+  paddingTop: number;
+  paddingBottom: number;
+  onClose: () => void;
+}>) {
+  const cover = Math.min(Math.max(layout.screenWidth - layout.screenPadding * 2 - 16, 220), 288);
+
+  return (
+    <View
+      style={[
+        styles.nowPlayingSkelRoot,
+        {
+          paddingTop,
+          paddingBottom,
+          paddingHorizontal: layout.screenPadding,
+        },
+      ]}
+    >
+      <View style={styles.nowPlayingSkelTop}>
+        <Pressable
+          onPress={onClose}
+          hitSlop={14}
+          style={({ pressed }) => [styles.nowPlayingSkelClose, pressed && { opacity: 0.7 }]}
+          accessibilityRole="button"
+          accessibilityLabel="Close player"
+        >
+          <Ionicons name="chevron-down" size={22} color={colors.text.primary} />
+        </Pressable>
+        <View style={styles.nowPlayingSkelTopCenter}>
+          <ShimmerBone width="48%" height={10} radius={5} staggerDelay={50} variant="muted" />
+          <ShimmerBone width="36%" height={12} radius={6} staggerDelay={100} />
+        </View>
+        <View style={styles.nowPlayingSkelTopSpacer} />
+      </View>
+
+      <ShimmerBone
+        width={cover}
+        height={cover}
+        radius={borderRadius.xl}
+        staggerDelay={120}
+        style={styles.nowPlayingSkelCover}
+      />
+
+      <ShimmerBone width="94%" height={24} radius={10} staggerDelay={160} />
+      <ShimmerBone
+        width="58%"
+        height={14}
+        radius={7}
+        staggerDelay={200}
+        variant="muted"
+        style={{ marginTop: spacing[2] }}
+      />
+
+      <ShimmerBone
+        width="100%"
+        height={4}
+        radius={2}
+        staggerDelay={240}
+        variant="muted"
+        style={{ marginTop: spacing[5] }}
+      />
+      <View style={styles.nowPlayingSkelTimes}>
+        <ShimmerBone width={40} height={11} radius={4} variant="muted" />
+        <ShimmerBone width={40} height={11} radius={4} variant="muted" />
+      </View>
+
+      <View style={styles.nowPlayingSkelControls}>
+        <ShimmerBone width={36} height={36} radius={18} staggerDelay={280} />
+        <ShimmerBone width={40} height={40} radius={20} staggerDelay={320} />
+        <ShimmerBone width={58} height={58} radius={29} staggerDelay={360} />
+        <ShimmerBone width={40} height={40} radius={20} staggerDelay={400} />
+        <ShimmerBone width={36} height={36} radius={18} staggerDelay={440} />
+      </View>
+    </View>
+  );
+}
+
 export function SearchResultsSkeleton() {
   return (
     <View style={{ paddingBottom: spacing[8] }}>
@@ -335,5 +418,50 @@ const styles = StyleSheet.create({
     padding: spacing[3],
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border.subtle,
+  },
+  nowPlayingSkelRoot: {
+    flex: 1,
+    backgroundColor: colors.bg.secondary,
+  },
+  nowPlayingSkelTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing[4],
+  },
+  nowPlayingSkelTopCenter: {
+    flex: 1,
+    alignItems: 'center',
+    gap: spacing[2],
+    paddingHorizontal: spacing[2],
+  },
+  nowPlayingSkelTopSpacer: { width: 40 },
+  nowPlayingSkelClose: {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
+  },
+  nowPlayingSkelCover: {
+    alignSelf: 'center',
+    marginTop: spacing[2],
+    marginBottom: spacing[6],
+  },
+  nowPlayingSkelTimes: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing[2],
+    paddingHorizontal: spacing[1],
+  },
+  nowPlayingSkelControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing[5],
+    paddingHorizontal: spacing[2],
   },
 });

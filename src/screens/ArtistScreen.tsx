@@ -12,6 +12,7 @@ import { SongRow } from '../components/cards/SongRow';
 import { AlbumCard } from '../components/cards/AlbumCard';
 import { usePlayer } from '../hooks/usePlayer';
 import { useLikedSongs } from '../hooks/useLikedSongs';
+import { useAddToPlaylist } from '../context/AddToPlaylistContext';
 import { useAuthStore } from '../store/authStore';
 import { queryKeys } from '../hooks/queryKeys';
 import { colors, fonts, fontSize, spacing, layout } from '../theme';
@@ -23,6 +24,7 @@ export function ArtistScreen() {
   const { playQueue } = usePlayer();
   const user = useAuthStore((s) => s.user);
   const { isLiked, toggleLike } = useLikedSongs();
+  const { openAddToPlaylist } = useAddToPlaylist();
 
   const artistQ = useQuery({
     queryKey: queryKeys.artist(artistId),
@@ -60,6 +62,7 @@ export function ArtistScreen() {
   const name = artistQ.data.name;
   const top =
     songsQ.data?.length ? songsQ.data : artistQ.data.topSongs ?? artistQ.data.songs ?? [];
+  const topQueue = top.slice(0, 20);
   const albums = albumsQ.data?.length ? albumsQ.data : artistQ.data.albums ?? [];
 
   return (
@@ -71,14 +74,16 @@ export function ArtistScreen() {
         <Text style={styles.h1}>{name}</Text>
         <Text style={styles.sec}>Top Songs</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hScroll}>
-          {top.slice(0, 20).map((s) => (
+          {topQueue.map((s, index) => (
             <View key={s.id} style={{ width: 280 }}>
               <SongRow
                 song={s}
-                onPress={() => void playQueue([s], 0)}
+                onPress={() => void playQueue(topQueue, index)}
                 liked={isLiked(s.id)}
                 onToggleLike={() => user && void toggleLike(s.id, isLiked(s.id))}
                 showLike={!!user}
+                showAddToPlaylist={!!user}
+                onAddToPlaylist={() => openAddToPlaylist(s)}
               />
             </View>
           ))}

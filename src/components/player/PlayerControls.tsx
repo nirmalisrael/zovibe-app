@@ -1,13 +1,7 @@
-import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  Animated,
-  Platform,
-} from 'react-native';
+import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
+import type { ReactNode } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { useRef, useCallback } from 'react';
+import { memo } from 'react';
 import { colors, spacing, borderRadius } from '../../theme';
 import type { RepeatMode } from '../../store/playerStore';
 
@@ -22,12 +16,14 @@ type Props = Readonly<{
   onRepeat: () => void;
 }>;
 
-// ─── Shared spring configs ────────────────────────────────────────────────────
-const SPRING_IN = { toValue: 0.82, useNativeDriver: true, friction: 5, tension: 300 } as const;
-const SPRING_OUT = { toValue: 1, useNativeDriver: true, friction: 4, tension: 200 } as const;
+function repeatAccessibilityLabel(mode: RepeatMode): string {
+  if (mode === 'off') return 'Repeat off';
+  if (mode === 'queue') return 'Repeat queue';
+  return 'Repeat one track';
+}
 
-// ─── Secondary icon button (shuffle / repeat) ─────────────────────────────────
-function IconButton({
+/** Secondary control: instant press glow only (no Animated). */
+const IconButton = memo(function IconButton({
   onPress,
   active,
   accessibilityLabel,
@@ -36,95 +32,57 @@ function IconButton({
   onPress: () => void;
   active?: boolean;
   accessibilityLabel: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }>) {
-  const scale = useRef(new Animated.Value(1)).current;
-  const opacity = useRef(new Animated.Value(1)).current;
-
-  const pressIn = useCallback(() => {
-    Animated.parallel([
-      Animated.spring(scale, { ...SPRING_IN, toValue: 0.82 }),
-      Animated.timing(opacity, { toValue: 0.7, duration: 80, useNativeDriver: true }),
-    ]).start();
-  }, [scale, opacity]);
-
-  const pressOut = useCallback(() => {
-    Animated.parallel([
-      Animated.spring(scale, SPRING_OUT),
-      Animated.timing(opacity, { toValue: 1, duration: 120, useNativeDriver: true }),
-    ]).start();
-  }, [scale, opacity]);
-
   return (
-    <Pressable
-      onPress={onPress}
-      onPressIn={pressIn}
-      onPressOut={pressOut}
-      hitSlop={16}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-    >
-      <Animated.View
-        style={[
+    <View style={styles.slot}>
+      <Pressable
+        onPress={onPress}
+        hitSlop={12}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
+        style={({ pressed }) => [
           styles.iconBtn,
           active && styles.iconBtnActive,
-          { transform: [{ scale }], opacity },
+          pressed && styles.pressedGlow,
         ]}
       >
         {children}
-        {active && <View style={styles.activeDot} />}
-      </Animated.View>
-    </Pressable>
+        {active ? <View style={styles.activeDot} /> : null}
+      </Pressable>
+    </View>
   );
-}
+});
 
-// ─── Skip buttons (prev / next) ───────────────────────────────────────────────
-function SkipButton({
+const SkipButton = memo(function SkipButton({
   onPress,
   direction,
 }: Readonly<{
   onPress: () => void;
   direction: 'prev' | 'next';
 }>) {
-  const scale = useRef(new Animated.Value(1)).current;
-  const opacity = useRef(new Animated.Value(1)).current;
-
-  const pressIn = useCallback(() => {
-    Animated.parallel([
-      Animated.spring(scale, { ...SPRING_IN, toValue: 0.86 }),
-      Animated.timing(opacity, { toValue: 0.65, duration: 70, useNativeDriver: true }),
-    ]).start();
-  }, [scale, opacity]);
-
-  const pressOut = useCallback(() => {
-    Animated.parallel([
-      Animated.spring(scale, SPRING_OUT),
-      Animated.timing(opacity, { toValue: 1, duration: 120, useNativeDriver: true }),
-    ]).start();
-  }, [scale, opacity]);
-
   return (
-    <Pressable
-      onPress={onPress}
-      onPressIn={pressIn}
-      onPressOut={pressOut}
-      hitSlop={16}
-      accessibilityRole="button"
-      accessibilityLabel={direction === 'prev' ? 'Previous track' : 'Next track'}
-    >
-      <Animated.View style={[styles.skipWrap, { transform: [{ scale }], opacity }]}>
+    <View style={styles.slot}>
+      <Pressable
+        onPress={onPress}
+        hitSlop={12}
+        accessibilityRole="button"
+        accessibilityLabel={direction === 'prev' ? 'Previous track' : 'Next track'}
+        style={({ pressed }) => [styles.skipHit, pressed && styles.pressedGlow]}
+      >
         <Ionicons
           name={direction === 'prev' ? 'play-skip-back' : 'play-skip-forward'}
-          size={30}
+          size={28}
           color={colors.text.primary}
         />
-      </Animated.View>
-    </Pressable>
+      </Pressable>
+    </View>
   );
-}
+});
 
-// ─── Main export ──────────────────────────────────────────────────────────────
-export function PlayerControls({
+const PLAY_SIZE = 64;
+
+export const PlayerControls = memo(function PlayerControls({
   isPlaying,
   shuffle,
   repeat,
@@ -134,35 +92,10 @@ export function PlayerControls({
   onShuffle,
   onRepeat,
 }: Props) {
-  const playScale = useRef(new Animated.Value(1)).current;
-  const playRing = useRef(new Animated.Value(0)).current;   // ripple expand
-
-  const pressIn = useCallback(() => {
-    Animated.spring(playScale, { ...SPRING_IN, toValue: 0.90 }).start();
-  }, [playScale]);
-
-  const pressOut = useCallback(() => {
-    Animated.spring(playScale, SPRING_OUT).start();
-  }, [playScale]);
-
-  // Subtle ripple on tap: ring expands from 58 → 74 and fades
-  const triggerRipple = useCallback(() => {
-    playRing.setValue(0);
-    Animated.timing(playRing, {
-      toValue: 1,
-      duration: 380,
-      useNativeDriver: true,
-    }).start();
-    onTogglePlay();
-  }, [playRing, onTogglePlay]);
-
-  const ringScale = playRing.interpolate({ inputRange: [0, 1], outputRange: [1, 1.28] });
-  const ringOpacity = playRing.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0.45, 0.2, 0] });
+  const repeatActive = repeat === 'queue' || repeat === 'track';
 
   return (
     <View style={styles.row}>
-
-      {/* ── Shuffle ── */}
       <IconButton
         onPress={onShuffle}
         active={shuffle}
@@ -175,48 +108,31 @@ export function PlayerControls({
         />
       </IconButton>
 
-      {/* ── Previous ── */}
       <SkipButton onPress={onPrev} direction="prev" />
 
-      {/* ── Play / Pause ── */}
-      <View style={styles.playOuter}>
-        {/* Ripple ring */}
-        <Animated.View
-          style={[
-            styles.rippleRing,
-            { transform: [{ scale: ringScale }], opacity: ringOpacity },
-          ]}
-          pointerEvents="none"
-        />
+      <View style={styles.slot}>
         <Pressable
-          onPress={triggerRipple}
-          onPressIn={pressIn}
-          onPressOut={pressOut}
-          hitSlop={10}
+          onPress={onTogglePlay}
+          hitSlop={12}
           accessibilityRole="button"
           accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+          style={({ pressed }) => [styles.playBtn, pressed && styles.playPressed]}
         >
-          <Animated.View
-            style={[styles.playBtn, { transform: [{ scale: playScale }] }]}
-          >
-            <Ionicons
-              name={isPlaying ? 'pause' : 'play'}
-              size={28}
-              color={colors.text.inverse}
-              style={!isPlaying ? styles.playIconOffset : undefined}
-            />
-          </Animated.View>
+          <Ionicons
+            name={isPlaying ? 'pause' : 'play'}
+            size={30}
+            color={colors.text.inverse}
+            style={isPlaying ? undefined : styles.playIconOffset}
+          />
         </Pressable>
       </View>
 
-      {/* ── Next ── */}
       <SkipButton onPress={onNext} direction="next" />
 
-      {/* ── Repeat ── */}
       <IconButton
         onPress={onRepeat}
-        active={repeat === 'queue' || repeat === 'track'}
-        accessibilityLabel={`Repeat: ${repeat}`}
+        active={repeatActive}
+        accessibilityLabel={repeatAccessibilityLabel(repeat)}
       >
         <Ionicons
           name={repeat === 'off' ? 'repeat-outline' : 'repeat'}
@@ -229,27 +145,36 @@ export function PlayerControls({
           </View>
         ) : null}
       </IconButton>
-
     </View>
   );
-}
-
-// ─── Styles ───────────────────────────────────────────────────────────────────
-const PLAY_SIZE = 64;
+});
 
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing[3],
-    marginVertical: spacing[4],
+    width: '100%',
+    maxWidth: 400,
+    alignSelf: 'center',
+    paddingHorizontal: spacing[1],
+    marginVertical: spacing[5],
+    gap: spacing[1],
+  },
+  /** Equal columns so play stays visually centered. */
+  slot: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 0,
   },
 
-  /* ── Secondary icon buttons ── */
+  pressedGlow: {
+    backgroundColor: 'rgba(124, 58, 237, 0.22)',
+  },
+
   iconBtn: {
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: borderRadius.full,
@@ -258,19 +183,18 @@ const styles = StyleSheet.create({
   iconBtnActive: {
     backgroundColor: 'rgba(124, 58, 237, 0.14)',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(167, 139, 250, 0.25)',
+    borderColor: 'rgba(167, 139, 250, 0.28)',
   },
   activeDot: {
     position: 'absolute',
-    bottom: 6,
+    bottom: 8,
     width: 4,
     height: 4,
     borderRadius: 2,
     backgroundColor: colors.brand.light,
   },
 
-  /* ── Skip buttons ── */
-  skipWrap: {
+  skipHit: {
     width: 48,
     height: 48,
     alignItems: 'center',
@@ -278,19 +202,6 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
   },
 
-  /* ── Play button ── */
-  playOuter: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rippleRing: {
-    position: 'absolute',
-    width: PLAY_SIZE,
-    height: PLAY_SIZE,
-    borderRadius: PLAY_SIZE / 2,
-    borderWidth: 1.5,
-    borderColor: colors.brand.light,
-  },
   playBtn: {
     width: PLAY_SIZE,
     height: PLAY_SIZE,
@@ -299,26 +210,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(167, 139, 250, 0.35)',
+    borderColor: 'rgba(167, 139, 250, 0.4)',
     ...Platform.select({
       ios: {
         shadowColor: colors.brand.primary,
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.55,
-        shadowRadius: 18,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.35,
+        shadowRadius: 10,
       },
-      android: { elevation: 10 },
+      android: { elevation: 6 },
+    }),
+  },
+  playPressed: {
+    backgroundColor: '#6D28D9',
+    borderColor: 'rgba(237, 233, 254, 0.45)',
+    ...Platform.select({
+      ios: {
+        shadowOpacity: 0.55,
+        shadowRadius: 14,
+      },
+      android: { elevation: 8 },
     }),
   },
   playIconOffset: {
-    marginLeft: 3,
+    marginLeft: 4,
   },
 
-  /* ── Repeat-one badge ── */
   repeatOneBadge: {
     position: 'absolute',
-    top: 5,
-    right: 3,
+    top: 4,
+    right: 2,
     minWidth: 15,
     height: 15,
     borderRadius: 8,
@@ -327,7 +248,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 2,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(255,255,255,0.22)',
   },
   repeatOneTxt: {
     fontSize: 9,

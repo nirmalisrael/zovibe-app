@@ -1,3 +1,5 @@
+import { Dimensions } from "react-native";
+
 export const spacing = {
   0: 0,
   1: 4,
@@ -17,4 +19,5 @@ export const layout = {
   sectionGap: 24,
   miniPlayerHeight: 64,
   tabBarHeight: 80,
+  screenWidth: Dimensions.get('window').width,
 };

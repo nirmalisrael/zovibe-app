@@ -1,18 +1,54 @@
-import { Easing } from 'react-native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Easing, View, StyleSheet } from 'react-native';
+import {
+  createBottomTabNavigator,
+  BottomTabBar,
+  type BottomTabBarProps,
+} from '@react-navigation/bottom-tabs';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { HomeStack } from './HomeStack';
 import { ExploreStack } from './ExploreStack';
 import { LibraryStackNav } from './LibraryStack';
 import { ProfileStackNav } from './ProfileStack';
-import type { MainTabParamList } from './types';
+import type { MainAppStackParamList, MainTabParamList } from './types';
 import { colors, layout } from '../theme';
+import { MiniPlayer } from '../components/player/MiniPlayer';
+import { usePlayerStore } from '../store/playerStore';
+import { usePlayer } from '../hooks/usePlayer';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
+
+function TabBarWithMini(props: Readonly<BottomTabBarProps>) {
+  const queueLen = usePlayerStore((s) => s.queue.length);
+  const { dismissMiniPlayer } = usePlayer();
+  const onExpand = () => {
+    props.navigation
+      .getParent<NativeStackNavigationProp<MainAppStackParamList>>()
+      ?.navigate('NowPlaying');
+  };
+
+  return (
+    <View style={tabBarShell.column}>
+      {queueLen > 0 ? (
+        <View pointerEvents="box-none">
+          <MiniPlayer onExpand={onExpand} onSwipeDismiss={() => void dismissMiniPlayer()} />
+        </View>
+      ) : null}
+      <BottomTabBar {...props} />
+    </View>
+  );
+}
+
+const tabBarShell = StyleSheet.create({
+  column: {
+    backgroundColor: colors.bg.surface,
+  },
+});
 
 export function MainNavigator() {
   return (
     <Tab.Navigator
+      tabBar={(p) => <TabBarWithMini {...p} />}
       screenOptions={{
         headerShown: false,
         /** Cross-fade between tabs — RN Animated + native driver, low cost */

@@ -14,6 +14,7 @@ import { LanguageBadge } from '../components/ui/LanguageBadge';
 import { SongRow } from '../components/cards/SongRow';
 import { usePlayer } from '../hooks/usePlayer';
 import { useLikedSongs } from '../hooks/useLikedSongs';
+import { useAddToPlaylist } from '../context/AddToPlaylistContext';
 import { useAuthStore } from '../store/authStore';
 import { queryKeys } from '../hooks/queryKeys';
 import { colors, fonts, fontSize, spacing, borderRadius, layout } from '../theme';
@@ -25,6 +26,7 @@ export function AlbumScreen() {
   const { playQueue } = usePlayer();
   const user = useAuthStore((s) => s.user);
   const { isLiked, toggleLike } = useLikedSongs();
+  const { openAddToPlaylist } = useAddToPlaylist();
 
   const q = useQuery({
     queryKey: queryKeys.album(albumId),
@@ -154,9 +156,11 @@ export function AlbumScreen() {
           toggleLike(item.id, isLiked(item.id));
         }}
         showLike={!!user}
+        showAddToPlaylist={!!user}
+        onAddToPlaylist={() => openAddToPlaylist(item)}
       />
     ),
-    [playQueue, songs, isLiked, user, toggleLike]
+    [playQueue, songs, isLiked, user, toggleLike, openAddToPlaylist]
   );
 
   if (q.isLoading) {

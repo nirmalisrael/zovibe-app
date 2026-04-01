@@ -21,6 +21,7 @@ import { SongRow } from '../components/cards/SongRow';
 import { useHomeContent } from '../hooks/useHomeContent';
 import { usePlayer } from '../hooks/usePlayer';
 import { useLikedSongs } from '../hooks/useLikedSongs';
+import { useAddToPlaylist } from '../context/AddToPlaylistContext';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import {
@@ -55,6 +56,7 @@ export function HomeScreen() {
   const homeFilter = useSettingsStore((s) => s.homeLanguageFilter);
   const { playQueue } = usePlayer();
   const { isLiked, toggleLike } = useLikedSongs();
+  const { openAddToPlaylist } = useAddToPlaylist();
 
   const langPrefsKey = langPrefs.join('|');
   const prefAlbumSections = useMemo(
@@ -108,6 +110,8 @@ export function HomeScreen() {
     showHomeLanguageSection('english', homeFilter);
 
   const refreshing = isFetching && !isInitialLoading;
+
+  const trendingQueue = !isInitialLoading && !isError ? trendingSongs.slice(0, 8) : [];
 
   return (
     <ScreenErrorBoundary>
@@ -184,13 +188,13 @@ export function HomeScreen() {
                   <Text style={styles.seeAll}>See all →</Text>
                 </Pressable>
               </View>
-              {trendingSongs.length > 0 ? (
-                trendingSongs.slice(0, 8).map((s) => (
+              {trendingQueue.length > 0 ? (
+                trendingQueue.map((s, index) => (
                   <SongRow
                     key={s.id}
                     song={s}
                     onPress={() => {
-                      playQueue([s], 0);
+                      void playQueue(trendingQueue, index);
                     }}
                     liked={isLiked(s.id)}
                     onToggleLike={() => {
@@ -198,6 +202,8 @@ export function HomeScreen() {
                       toggleLike(s.id, isLiked(s.id));
                     }}
                     showLike={!!user}
+                    showAddToPlaylist={!!user}
+                    onAddToPlaylist={() => openAddToPlaylist(s)}
                   />
                 ))
               ) : (

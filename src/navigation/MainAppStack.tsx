@@ -14,7 +14,15 @@ export function MainAppStack() {
       <Stack.Screen
         name="NowPlaying"
         component={NowPlayingScreen}
-        options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
+        options={{
+          presentation: 'fullScreenModal',
+          animation: 'slide_from_bottom',
+          /** Default stack uses horizontal gesture — breaks modal swipe-to-dismiss */
+          gestureDirection: 'vertical',
+          gestureEnabled: true,
+          fullScreenGestureEnabled: true,
+          animationMatchesGesture: true,
+        }}
       />
       <Stack.Screen
         name="Lyrics"

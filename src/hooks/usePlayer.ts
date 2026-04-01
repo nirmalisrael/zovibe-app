@@ -1,9 +1,10 @@
 import { useCallback } from 'react';
-import TrackPlayer, { RepeatMode as RNTPRepeat, State } from 'react-native-track-player';
+import TrackPlayer, { RepeatMode as RNTPRepeat, State, isPlaying as getIsPlayingUi } from 'react-native-track-player';
 import type { JioSaavnSong } from '../api/jiosaavn';
 import { buildTrack } from '../utils/buildTrack';
 import { usePlayerStore, type RepeatMode } from '../store/playerStore';
 import { useSettingsStore } from '../store/settingsStore';
+import { skipToNextInQueue, skipToPreviousInQueue } from '../player/queueSkip';
 
 function mapRepeat(mode: RepeatMode): RNTPRepeat {
   switch (mode) {
@@ -58,39 +59,20 @@ export function usePlayer() {
   }, []);
 
   const skipToNext = useCallback(async () => {
-    const { shuffle, queue } = usePlayerStore.getState();
-    if (shuffle && queue.length > 1) {
-      const cur = (await TrackPlayer.getActiveTrackIndex()) ?? 0;
-      let next = cur;
-      let guard = 0;
-      while (next === cur && guard < 20) {
-        next = Math.floor(Math.random() * queue.length);
-        guard += 1;
-      }
-      if (next !== cur) await TrackPlayer.skip(next);
-    } else {
-      await TrackPlayer.skipToNext();
-    }
+    await skipToNextInQueue();
   }, []);
 
   const skipToPrevious = useCallback(async () => {
-    const { shuffle, queue } = usePlayerStore.getState();
-    if (shuffle && queue.length > 1) {
-      const cur = (await TrackPlayer.getActiveTrackIndex()) ?? 0;
-      let prev = cur;
-      let guard = 0;
-      while (prev === cur && guard < 20) {
-        prev = Math.floor(Math.random() * queue.length);
-        guard += 1;
-      }
-      if (prev !== cur) await TrackPlayer.skip(prev);
-    } else {
-      await TrackPlayer.skipToPrevious();
-    }
+    await skipToPreviousInQueue();
   }, []);
 
   const seekTo = useCallback(async (seconds: number) => {
+    const { playing } = await getIsPlayingUi();
     await TrackPlayer.seekTo(seconds);
+    // Some platforms briefly leave the player non-Playing after seek; nudge play if user was listening.
+    if (playing) {
+      await TrackPlayer.play();
+    }
   }, []);
 
   const applyRepeatFromStore = useCallback(async () => {
@@ -108,6 +90,28 @@ export function usePlayer() {
     usePlayerStore.getState().toggleShuffle();
   }, []);
 
+  /** Stop playback, clear RNTP queue, hide mini player (swipe-down dismiss). */
+  const dismissMiniPlayer = useCallback(async () => {
+    try {
+      await TrackPlayer.reset();
+    } catch {
+      /* ignore */
+    }
+    usePlayerStore.getState().setQueue([]);
+    usePlayerStore.getState().setIsPlaying(false);
+  }, []);
+
+  const skipToQueueIndex = useCallback(async (index: number) => {
+    const songs = usePlayerStore.getState().queue;
+    if (index < 0 || index >= songs.length) return;
+    try {
+      await TrackPlayer.skip(index);
+      usePlayerStore.getState().setCurrentSong(songs[index] ?? null);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   return {
     playQueue,
     togglePlay,
@@ -115,9 +119,11 @@ export function usePlayer() {
     play,
     skipToNext,
     skipToPrevious,
+    skipToQueueIndex,
     seekTo,
     cycleRepeat,
     toggleShuffle,
     applyRepeatFromStore,
+    dismissMiniPlayer,
   };
 }
