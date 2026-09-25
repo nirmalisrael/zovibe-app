@@ -343,15 +343,15 @@ export function HomeScreen() {
             !isError &&
             visibleSections.map((section) => {
               const meta = HOME_CAROUSEL_META[section];
-              const albums = albumsBySection[section];
-              if (!albums.length) return null;
+              const albums = albumsBySection?.[section] ?? [];
+              if (!meta || albums.length === 0) return null;
               return (
                 <SectionCarousel
                   key={section}
                   title={meta.carouselTitle}
                   onSeeAll={() =>
                     navigation.navigate('SearchResults', {
-                      query: HOME_SEEDS[section][0],
+                      query: HOME_SEEDS[section]?.[0] ?? section,
                       title: meta.searchTitle,
                     })
                   }
@@ -412,17 +412,17 @@ export function HomeScreen() {
           {!isInitialLoading &&
             !isError &&
             showEnglishCarousel &&
-            albumsBySection.english.length > 0 ? (
+            (albumsBySection?.english?.length ?? 0) > 0 ? (
             <SectionCarousel
               title={HOME_CAROUSEL_META.english.carouselTitle}
               onSeeAll={() =>
                 navigation.navigate('SearchResults', {
-                  query: HOME_SEEDS.english[0],
+                  query: HOME_SEEDS.english?.[0] ?? 'english',
                   title: HOME_CAROUSEL_META.english.searchTitle,
                 })
               }
             >
-              {albumsBySection.english.map((a) => (
+              {(albumsBySection?.english ?? []).map((a) => (
                 <AlbumCard
                   key={a.id}
                   album={a}

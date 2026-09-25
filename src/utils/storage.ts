@@ -14,9 +14,17 @@ export async function getSecure(key: string): Promise<string | null> {
 }
 
 export async function setSecure(key: string, value: string): Promise<void> {
-  await AsyncStorage.setItem(key, value);
+  try {
+    await AsyncStorage.setItem(key, value);
+  } catch (err) {
+    console.warn(`[storage] setSecure error for ${key}:`, err);
+  }
 }
 
 export async function deleteSecure(key: string): Promise<void> {
-  await AsyncStorage.removeItem(key);
+  try {
+    await AsyncStorage.removeItem(key);
+  } catch (err) {
+    console.warn(`[storage] deleteSecure error for ${key}:`, err);
+  }
 }

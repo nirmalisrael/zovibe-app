@@ -68,25 +68,31 @@ export function OnboardingScreen() {
 
   const onContinue = async () => {
     if (!selected.length) return;
-    const sanitized = sanitizeLangPrefs(selected);
-    await setSecure(KEY_LANG_PREFS, JSON.stringify(sanitized));
-    setLangPrefs(sanitized);
-    if (prefsOnly) {
-      const nextHome = homeOptions.includes(homeFocus)
-        ? homeFocus
-        : defaultHomeLanguageFilter(sanitized);
-      useSettingsStore.getState().setHomeLanguageFilter(nextHome);
-      navigation.goBack();
-      return;
-    }
-    await setSecure(KEY_ONBOARDING_DONE, '1');
-    useSettingsStore.getState().setHomeLanguageFilter(defaultHomeLanguageFilter(sanitized));
-    const { isAuthenticated, isGuest } = useAuthStore.getState();
-    const rootNav = navigation as NativeStackNavigationProp<RootStackParamList>;
-    if (isAuthenticated && !isGuest) {
-      rootNav.reset({ index: 0, routes: [{ name: 'MainApp' }] });
-    } else {
-      rootNav.reset({ index: 0, routes: [{ name: 'Login' }] });
+    try {
+      const sanitized = sanitizeLangPrefs(selected);
+      await setSecure(KEY_LANG_PREFS, JSON.stringify(sanitized));
+      setLangPrefs(sanitized);
+      if (prefsOnly) {
+        const nextHome = homeOptions.includes(homeFocus)
+          ? homeFocus
+          : defaultHomeLanguageFilter(sanitized);
+        useSettingsStore.getState().setHomeLanguageFilter(nextHome);
+        if (navigation.canGoBack()) {
+          navigation.goBack();
+        }
+        return;
+      }
+      await setSecure(KEY_ONBOARDING_DONE, '1');
+      useSettingsStore.getState().setHomeLanguageFilter(defaultHomeLanguageFilter(sanitized));
+      const { isAuthenticated, isGuest } = useAuthStore.getState();
+      const rootNav = navigation as NativeStackNavigationProp<RootStackParamList>;
+      if (isAuthenticated && !isGuest) {
+        rootNav.reset({ index: 0, routes: [{ name: 'MainApp' }] });
+      } else {
+        rootNav.reset({ index: 0, routes: [{ name: 'Login' }] });
+      }
+    } catch (e) {
+      console.warn('[Onboarding] Error continuing:', e);
     }
   };
 
@@ -268,7 +274,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing[3],
     lineHeight: 20,
   },
-  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], paddingVertical: spacing[1] },
+  pillRow: { flexDirection: 'row', gap: spacing[2], paddingVertical: spacing[1] },
   pill: {
     paddingHorizontal: spacing[4],
     paddingVertical: spacing[2],

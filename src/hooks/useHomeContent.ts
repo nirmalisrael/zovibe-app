@@ -25,14 +25,18 @@ type TrendingKey = 'trending';
 
 function buildHomeAlbumQueries(sections: readonly HomeAlbumSection[]) {
   return sections.flatMap((section) =>
-    HOME_SEEDS[section].map((term) => ({
+    (HOME_SEEDS[section] ?? []).map((term) => ({
       queryKey: queryKeys.homeAlbums(section, term),
       queryFn: async () => {
-        const suffix = getLanguageQuerySuffix(section as LanguageFilterId);
-        const q = `${term}${suffix}`.trim();
-        const albums = await searchAlbums(q, 0, 5);
-        const filtered = albums.filter((a) => albumMatchesHomeSection(a, section));
-        return { section, term, albums: filtered };
+        try {
+          const suffix = getLanguageQuerySuffix(section as LanguageFilterId);
+          const q = `${term}${suffix}`.trim();
+          const albums = await searchAlbums(q, 0, 5);
+          const filtered = (albums || []).filter((a) => albumMatchesHomeSection(a, section));
+          return { section, term, albums: filtered };
+        } catch {
+          return { section, term, albums: [] };
+        }
       },
       staleTime: 5 * 60 * 1000,
     }))
@@ -44,8 +48,12 @@ function useSectionSongs(section: TrendingKey, terms: readonly string[]) {
     queries: terms.map((term) => ({
       queryKey: queryKeys.homeSongs(section, term),
       queryFn: async () => {
-        const songs = await searchSongs(term, 0, 12);
-        return { term, songs };
+        try {
+          const songs = await searchSongs(term, 0, 12);
+          return { term, songs: songs || [] };
+        } catch {
+          return { term, songs: [] };
+        }
       },
       staleTime: 5 * 60 * 1000,
     })),
@@ -67,13 +75,14 @@ function mergeAlbumsBySection(
     if (!d) continue;
     const { section, albums } = d;
     const m = maps[section];
-    for (const a of albums) {
+    if (!m) continue;
+    for (const a of (albums || [])) {
       if (a?.id) m.set(a.id, a);
     }
   }
   return HOME_ALBUM_SECTIONS.reduce(
     (acc, s) => {
-      acc[s] = [...maps[s].values()];
+      acc[s] = maps[s] ? [...maps[s].values()] : [];
       return acc;
     },
     {} as Record<HomeAlbumSection, JioSaavnAlbumListItem[]>
@@ -84,7 +93,7 @@ function flattenSongs(results: ReturnType<typeof useSectionSongs>): JioSaavnSong
   const map = new Map<string, JioSaavnSong>();
   for (const q of results) {
     const data = q.data;
-    if (!data) continue;
+    if (!data?.songs) continue;
     for (const s of data.songs) {
       if (s?.id && !map.has(s.id)) map.set(s.id, s);
     }
@@ -138,12 +147,17 @@ export function useHomeContent(
     .filter((s) => songMatchesLanguageTokens(s, trendTokens))
     .sort((a, b) => toSongTimestamp(b) - toSongTimestamp(a));
 
+  const hasContent =
+    Object.values(albumsBySection).some((list) => (list?.length ?? 0) > 0) || trendingSongs.length > 0;
   const isInitialLoading =
-    !albumResults.every((q) => q.isFetched) || !trendingQ.every((q) => q.isFetched);
+    !hasContent &&
+    (!albumResults.every((q) => q.isFetched) || !trendingQ.every((q) => q.isFetched));
   const isFetching =
     albumResults.some((q) => q.isFetching) || trendingQ.some((q) => q.isFetching);
   const isError =
-    albumResults.some((q) => q.isError) || trendingQ.some((q) => q.isError);
+    !hasContent &&
+    albumResults.length > 0 &&
+    albumResults.every((q) => q.isError);
 
   return {
     albumsBySection,
