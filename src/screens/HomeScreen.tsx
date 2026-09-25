@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
@@ -159,6 +160,13 @@ export function HomeScreen() {
   return (
     <ScreenErrorBoundary>
       <ScreenWrapper style={styles.screenNoPad}>
+        <LinearGradient
+          colors={['rgba(139, 92, 246, 0.16)', 'rgba(124, 58, 237, 0.04)', 'transparent']}
+          style={styles.ambientGlow}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          pointerEvents="none"
+        />
         <ScrollView
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
@@ -179,7 +187,15 @@ export function HomeScreen() {
             onAvatarPress={onAvatarPress}
             onSearchPress={() => searchInputRef.current?.focus()}
           />
-          <Text style={styles.greet}>{greetingLine()}</Text>
+
+          <View style={styles.greetContainer}>
+            <View style={styles.greetPill}>
+              <Ionicons name="sparkles" size={12} color={colors.brand.light} />
+              <Text style={styles.greetText} numberOfLines={1}>
+                {greetingLine()}
+              </Text>
+            </View>
+          </View>
 
           {/* Search Bar for Songs */}
           <View
@@ -331,7 +347,13 @@ export function HomeScreen() {
             </ScrollView>
           )}
 
-          <Text style={styles.sectionLabel}>Your Vibe</Text>
+          <View style={styles.sectionHeadingWrap}>
+            <View style={styles.sectionHeadingLeft}>
+              <View style={styles.sectionHeadingBar} />
+              <Text style={styles.sectionHeadingTitle}>Your Vibe</Text>
+            </View>
+            <Text style={styles.sectionHeadingHint}>Curated for you</Text>
+          </View>
           <MoodPillRow onSelect={onMoodSelect} />
 
           {isInitialLoading ? <HomeFeedSkeleton /> : null}
@@ -368,9 +390,17 @@ export function HomeScreen() {
             })}
 
           {!isInitialLoading && !isError ? (
-            <>
+            <View style={styles.trendingCard}>
               <View style={styles.trendHead}>
-                <Text style={styles.trendTitle}>Trending Now</Text>
+                <View style={styles.trendTitleGroup}>
+                  <View style={styles.trendBadgeIcon}>
+                    <Ionicons name="flame" size={15} color="#f43f5e" />
+                  </View>
+                  <View>
+                    <Text style={styles.trendTitle}>Trending Now</Text>
+                    <Text style={styles.trendSub}>Most streamed tracks today</Text>
+                  </View>
+                </View>
                 <Pressable
                   onPress={() =>
                     navigation.navigate('SearchResults', {
@@ -378,35 +408,39 @@ export function HomeScreen() {
                       title: 'Trending',
                     })
                   }
+                  style={({ pressed }) => [styles.seeAllPill, pressed && styles.seeAllPillPressed]}
                   accessibilityRole="button"
                   accessibilityLabel="See all trending tracks"
                   hitSlop={8}
                 >
-                  <Text style={styles.seeAll}>See all →</Text>
+                  <Text style={styles.seeAllText}>See all</Text>
+                  <Ionicons name="chevron-forward" size={12} color={colors.brand.light} style={{ marginLeft: 2 }} />
                 </Pressable>
               </View>
               {trendingQueue.length > 0 ? (
-                trendingQueue.map((s, index) => (
-                  <SongRow
-                    key={s.id}
-                    song={s}
-                    onPress={() => {
-                      void playQueue(trendingQueue, index);
-                    }}
-                    liked={isLiked(s.id)}
-                    onToggleLike={() => {
-                      if (!user) return;
-                      toggleLike(s.id, isLiked(s.id));
-                    }}
-                    showLike={!!user}
-                    showAddToPlaylist={!!user}
-                    onAddToPlaylist={() => openAddToPlaylist(s)}
-                  />
-                ))
+                <View style={styles.trendingListWrap}>
+                  {trendingQueue.map((s, index) => (
+                    <SongRow
+                      key={s.id}
+                      song={s}
+                      onPress={() => {
+                        void playQueue(trendingQueue, index);
+                      }}
+                      liked={isLiked(s.id)}
+                      onToggleLike={() => {
+                        if (!user) return;
+                        toggleLike(s.id, isLiked(s.id));
+                      }}
+                      showLike={!!user}
+                      showAddToPlaylist={!!user}
+                      onAddToPlaylist={() => openAddToPlaylist(s)}
+                    />
+                  ))}
+                </View>
               ) : (
                 <Text style={styles.emptyHint}>No trending tracks right now. Pull to refresh.</Text>
               )}
-            </>
+            </View>
           ) : null}
 
           {!isInitialLoading &&
@@ -439,40 +473,54 @@ export function HomeScreen() {
 
 const styles = StyleSheet.create({
   screenNoPad: { paddingHorizontal: 0 },
+  ambientGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 320,
+  },
   scroll: {
     flexGrow: 1,
     paddingHorizontal: layout.screenPadding,
     paddingBottom: 120,
   },
-  trendHead: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  greetContainer: {
     marginBottom: spacing[3],
-    marginTop: spacing[2],
+    paddingHorizontal: 2,
   },
-  trendTitle: { fontFamily: fonts.bold, fontSize: fontSize.lg, color: colors.text.primary },
-  seeAll: { fontFamily: fonts.medium, fontSize: fontSize.sm, color: colors.brand.light },
-  greet: {
-    fontFamily: fonts.regular,
-    fontSize: fontSize.md,
-    color: colors.text.secondary,
-    marginBottom: spacing[3],
+  greetPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing[3],
+    paddingVertical: 5,
+    borderRadius: borderRadius.full,
+    backgroundColor: 'rgba(139, 92, 246, 0.09)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.22)',
+    gap: 6,
+  },
+  greetText: {
+    fontFamily: fonts.medium,
+    fontSize: fontSize.xs,
+    color: colors.brand.light,
+    letterSpacing: 0.2,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.bg.secondary,
+    backgroundColor: colors.bg.surface,
     borderWidth: 1,
-    borderColor: colors.border.default,
-    borderRadius: borderRadius.lg,
-    paddingHorizontal: spacing[3],
-    height: 46,
-    marginBottom: spacing[2],
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: borderRadius.xl,
+    paddingHorizontal: spacing[3] + 2,
+    height: 48,
+    marginBottom: spacing[3],
   },
   searchBarFocused: {
     borderColor: colors.brand.primary,
-    backgroundColor: colors.bg.tertiary,
+    backgroundColor: 'rgba(28, 28, 35, 0.98)',
   },
   searchIcon: {
     marginRight: spacing[2],
@@ -493,9 +541,9 @@ const styles = StyleSheet.create({
     padding: 2,
   },
   searchSubmitBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: colors.brand.primary,
     alignItems: 'center',
     justifyContent: 'center',
@@ -510,16 +558,16 @@ const styles = StyleSheet.create({
   quickChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.bg.secondary,
+    backgroundColor: 'rgba(28, 28, 35, 0.7)',
     borderWidth: 1,
-    borderColor: colors.border.default,
-    paddingHorizontal: spacing[3],
-    paddingVertical: 6,
+    borderColor: 'rgba(255, 255, 255, 0.07)',
+    paddingHorizontal: spacing[3] + 2,
+    paddingVertical: 7,
     borderRadius: borderRadius.full,
   },
   quickChipPressed: {
     borderColor: colors.brand.primary,
-    backgroundColor: colors.bg.tertiary,
+    backgroundColor: 'rgba(139, 92, 246, 0.16)',
   },
   quickChipText: {
     fontFamily: fonts.medium,
@@ -527,10 +575,10 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
   },
   suggestionsContainer: {
-    backgroundColor: colors.bg.secondary,
+    backgroundColor: 'rgba(24, 24, 30, 0.96)',
     borderWidth: 1,
-    borderColor: colors.border.default,
-    borderRadius: borderRadius.md,
+    borderColor: 'rgba(139, 92, 246, 0.28)',
+    borderRadius: borderRadius.lg,
     marginBottom: spacing[4],
     overflow: 'hidden',
   },
@@ -552,16 +600,16 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: spacing[3],
     borderBottomWidth: 1,
-    borderBottomColor: colors.border.subtle,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
   },
   suggestionRowPressed: {
-    backgroundColor: colors.bg.tertiary,
+    backgroundColor: 'rgba(139, 92, 246, 0.12)',
   },
   suggestionIconWrap: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: colors.bg.tertiary,
+    backgroundColor: 'rgba(139, 92, 246, 0.14)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing[3],
@@ -600,7 +648,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing[3],
     paddingHorizontal: spacing[3],
-    backgroundColor: colors.bg.tertiary,
+    backgroundColor: 'rgba(139, 92, 246, 0.14)',
   },
   suggestionSeeAllText: {
     flex: 1,
@@ -608,17 +656,103 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     color: colors.brand.light,
   },
-  sectionLabel: {
-    fontFamily: fonts.medium,
-    fontSize: fontSize.md,
+  sectionHeadingWrap: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing[3],
+    marginTop: spacing[1],
+    paddingHorizontal: 2,
+  },
+  sectionHeadingLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  sectionHeadingBar: {
+    width: 3.5,
+    height: 16,
+    borderRadius: 2,
+    backgroundColor: colors.brand.primary,
+  },
+  sectionHeadingTitle: {
+    fontFamily: fonts.bold,
+    fontSize: fontSize.lg,
     color: colors.text.primary,
-    marginBottom: spacing[2],
+    letterSpacing: -0.3,
+  },
+  sectionHeadingHint: {
+    fontFamily: fonts.regular,
+    fontSize: fontSize.xs,
+    color: colors.text.tertiary,
+  },
+  trendingCard: {
+    marginBottom: layout.sectionGap + spacing[1],
+    borderRadius: borderRadius.xl,
+    backgroundColor: 'rgba(24, 24, 30, 0.65)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    padding: spacing[3] + 2,
+    overflow: 'hidden',
+  },
+  trendHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing[3],
+  },
+  trendTitleGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  trendBadgeIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(244, 63, 94, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  trendTitle: {
+    fontFamily: fonts.bold,
+    fontSize: fontSize.md + 1,
+    color: colors.text.primary,
+    letterSpacing: -0.2,
+  },
+  trendSub: {
+    fontFamily: fonts.regular,
+    fontSize: fontSize.xs,
+    color: colors.text.tertiary,
+    marginTop: 1,
+  },
+  seeAllPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing[2] + 2,
+    paddingVertical: 4,
+    borderRadius: borderRadius.full,
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.18)',
+  },
+  seeAllPillPressed: {
+    backgroundColor: 'rgba(139, 92, 246, 0.22)',
+  },
+  seeAllText: {
+    fontFamily: fonts.medium,
+    fontSize: fontSize.xs,
+    color: colors.brand.light,
+  },
+  trendingListWrap: {
+    marginTop: spacing[1],
   },
   emptyHint: {
     fontFamily: fonts.regular,
     fontSize: fontSize.sm,
     color: colors.text.tertiary,
-    marginBottom: spacing[4],
+    marginBottom: spacing[2],
     paddingVertical: spacing[2],
+    textAlign: 'center',
   },
 });

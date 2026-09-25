@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: spacing[3],
+    paddingTop: spacing[5],
     marginBottom: spacing[4],
   },
   wordmark: { marginBottom: 0 },
