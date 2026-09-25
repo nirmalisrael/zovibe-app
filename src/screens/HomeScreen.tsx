@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ScrollView,
   View,
@@ -7,10 +7,13 @@ import {
   Pressable,
   RefreshControl,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useQuery } from '@tanstack/react-query';
+import { searchSongs } from '../api/jiosaavn';
 import { ScreenWrapper } from '../components/ui/ScreenWrapper';
 import { ScreenErrorBoundary } from '../components/ui/ScreenErrorBoundary';
 import { HomeFeedSkeleton } from '../components/ui/PageSkeletons';
@@ -20,6 +23,8 @@ import { MoodPillRow } from '../components/home/MoodPillRow';
 import { SectionCarousel } from '../components/home/SectionCarousel';
 import { AlbumCard } from '../components/cards/AlbumCard';
 import { SongRow } from '../components/cards/SongRow';
+import { formatTime } from '../utils/formatTime';
+import { cleanHtmlEntities, getPrimaryArtistNames } from '../utils/songHelpers';
 import { useHomeContent } from '../hooks/useHomeContent';
 import { usePlayer } from '../hooks/usePlayer';
 import { useLikedSongs } from '../hooks/useLikedSongs';
@@ -118,8 +123,25 @@ export function HomeScreen() {
   const trendingQueue = !isInitialLoading && !isError ? trendingSongs.slice(0, 8) : [];
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const searchInputRef = useRef<TextInput | null>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const hasSearchText = searchQuery.trim().length >= 2;
+
+  const { data: suggestions = [], isFetching: isSearchingSuggestions } = useQuery({
+    queryKey: ['home', 'songSuggestions', debouncedSearch],
+    queryFn: () => searchSongs(debouncedSearch, 0, 6),
+    enabled: debouncedSearch.length >= 2,
+    staleTime: 60 * 1000,
+  });
 
   const onSearchSubmit = useCallback(
     (overrideQuery?: string) => {
@@ -207,34 +229,107 @@ export function HomeScreen() {
             ) : null}
           </View>
 
-          {/* Quick Search Chips */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.quickChipsContainer}
-            style={styles.quickChipsWrapper}
-          >
-            {QUICK_SEARCH_CHIPS.map((chip) => (
+          {/* Live Search Suggestions (YouTube / Google Search Style) */}
+          {hasSearchText ? (
+            <View style={styles.suggestionsContainer}>
+              {isSearchingSuggestions && suggestions.length === 0 ? (
+                <View style={styles.suggestionLoadingRow}>
+                  <ActivityIndicator size="small" color={colors.brand.primary} />
+                  <Text style={styles.suggestionLoadingText}>Finding matching songs...</Text>
+                </View>
+              ) : suggestions.length > 0 ? (
+                suggestions.map((song) => {
+                  const songName = cleanHtmlEntities(song.name);
+                  const artist = getPrimaryArtistNames(song);
+                  const dur = formatTime(song.duration);
+                  return (
+                    <Pressable
+                      key={song.id}
+                      onPress={() => onSearchSubmit(songName)}
+                      style={({ pressed }) => [
+                        styles.suggestionRow,
+                        pressed && styles.suggestionRowPressed,
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Search for ${songName}`}
+                    >
+                      <View style={styles.suggestionIconWrap}>
+                        <Ionicons name="musical-notes-outline" size={15} color={colors.brand.light} />
+                      </View>
+                      <View style={styles.suggestionTextWrap}>
+                        <Text style={styles.suggestionTitle} numberOfLines={1}>
+                          {songName}
+                        </Text>
+                        <Text style={styles.suggestionArtist} numberOfLines={1}>
+                          {artist}{dur ? ` • ${dur}` : ''}
+                        </Text>
+                      </View>
+                      <Pressable
+                        onPress={() => setSearchQuery(songName)}
+                        hitSlop={10}
+                        style={styles.suggestionInsertBtn}
+                        accessibilityLabel={`Insert ${songName} into search`}
+                      >
+                        <Ionicons
+                          name="arrow-back-outline"
+                          size={15}
+                          color={colors.text.tertiary}
+                          style={{ transform: [{ rotate: '45deg' }] }}
+                        />
+                      </Pressable>
+                    </Pressable>
+                  );
+                })
+              ) : !isSearchingSuggestions ? (
+                <View style={styles.suggestionEmptyRow}>
+                  <Text style={styles.suggestionEmptyText}>No matching songs found</Text>
+                </View>
+              ) : null}
+
+              {/* View all search results option */}
               <Pressable
-                key={chip}
-                onPress={() => {
-                  setSearchQuery(chip);
-                  onSearchSubmit(chip);
-                }}
-                style={({ pressed }) => [styles.quickChip, pressed && styles.quickChipPressed]}
-                accessibilityRole="button"
-                accessibilityLabel={`Search for ${chip}`}
+                onPress={() => onSearchSubmit(searchQuery)}
+                style={({ pressed }) => [
+                  styles.suggestionSeeAllRow,
+                  pressed && styles.suggestionRowPressed,
+                ]}
               >
-                <Ionicons
-                  name="sparkles-outline"
-                  size={12}
-                  color={colors.brand.light}
-                  style={{ marginRight: 5 }}
-                />
-                <Text style={styles.quickChipText}>{chip}</Text>
+                <Ionicons name="search-outline" size={14} color={colors.brand.light} style={{ marginRight: 8 }} />
+                <Text style={styles.suggestionSeeAllText} numberOfLines={1}>
+                  See all results for "{searchQuery.trim()}"
+                </Text>
               </Pressable>
-            ))}
-          </ScrollView>
+            </View>
+          ) : (
+            /* Quick Search Chips */
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.quickChipsContainer}
+              style={styles.quickChipsWrapper}
+            >
+              {QUICK_SEARCH_CHIPS.map((chip) => (
+                <Pressable
+                  key={chip}
+                  onPress={() => {
+                    setSearchQuery(chip);
+                    onSearchSubmit(chip);
+                  }}
+                  style={({ pressed }) => [styles.quickChip, pressed && styles.quickChipPressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Search for ${chip}`}
+                >
+                  <Ionicons
+                    name="sparkles-outline"
+                    size={12}
+                    color={colors.brand.light}
+                    style={{ marginRight: 5 }}
+                  />
+                  <Text style={styles.quickChipText}>{chip}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
 
           <Text style={styles.sectionLabel}>Your Vibe</Text>
           <MoodPillRow onSelect={onMoodSelect} />
@@ -430,6 +525,88 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     fontSize: fontSize.xs,
     color: colors.text.secondary,
+  },
+  suggestionsContainer: {
+    backgroundColor: colors.bg.secondary,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing[4],
+    overflow: 'hidden',
+  },
+  suggestionLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[3],
+    gap: spacing[2],
+  },
+  suggestionLoadingText: {
+    fontFamily: fonts.regular,
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
+  },
+  suggestionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: spacing[3],
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border.subtle,
+  },
+  suggestionRowPressed: {
+    backgroundColor: colors.bg.tertiary,
+  },
+  suggestionIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.bg.tertiary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing[3],
+  },
+  suggestionTextWrap: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  suggestionTitle: {
+    fontFamily: fonts.medium,
+    fontSize: fontSize.sm,
+    color: colors.text.primary,
+  },
+  suggestionArtist: {
+    fontFamily: fonts.regular,
+    fontSize: fontSize.xs,
+    color: colors.text.secondary,
+    marginTop: 2,
+  },
+  suggestionInsertBtn: {
+    padding: spacing[1],
+    marginLeft: spacing[2],
+  },
+  suggestionEmptyRow: {
+    paddingVertical: spacing[3],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  suggestionEmptyText: {
+    fontFamily: fonts.regular,
+    fontSize: fontSize.sm,
+    color: colors.text.tertiary,
+  },
+  suggestionSeeAllRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[3],
+    backgroundColor: colors.bg.tertiary,
+  },
+  suggestionSeeAllText: {
+    flex: 1,
+    fontFamily: fonts.medium,
+    fontSize: fontSize.xs,
+    color: colors.brand.light,
   },
   sectionLabel: {
     fontFamily: fonts.medium,

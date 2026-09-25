@@ -84,22 +84,96 @@ async function fetchJson<T>(path: string, params?: Record<string, string | numbe
   return res.json() as Promise<T>;
 }
 
+import { cleanHtmlEntities } from '../utils/songHelpers';
+
+function normalizeSongItem(raw: unknown): JioSaavnSong {
+  if (!raw || typeof raw !== 'object') {
+    return raw as JioSaavnSong;
+  }
+  const r = raw as Record<string, unknown>;
+  const name = cleanHtmlEntities(
+    typeof r.name === 'string' ? r.name : (typeof r.title === 'string' ? r.title : 'Unknown track')
+  );
+
+  let duration = 0;
+  if (typeof r.duration === 'number' && Number.isFinite(r.duration)) {
+    duration = r.duration;
+  } else if (typeof r.duration === 'string') {
+    duration = Number.parseFloat(r.duration) || 0;
+  }
+
+  // Format artists
+  let artists = r.artists as JioSaavnSong['artists'] | undefined;
+  if (!artists || (!artists.primary?.length && !artists.all?.length)) {
+    const primaryStr = typeof r.primaryArtists === 'string' ? r.primaryArtists : '';
+    const singersStr = typeof r.singers === 'string' ? r.singers : '';
+    const artistStr = typeof r.artist === 'string' ? r.artist : '';
+    const combined = primaryStr || singersStr || artistStr;
+    const artistList = combined
+      ? combined
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .map((n) => ({
+            id: '',
+            name: cleanHtmlEntities(n),
+            image: [] as JioSaavnImage[],
+          }))
+      : [];
+
+    artists = {
+      primary: artistList,
+      all: artistList,
+    };
+  }
+
+  // Format album
+  let album = r.album as JioSaavnSong['album'] | string | undefined;
+  let normalizedAlbum: JioSaavnSong['album'];
+  if (typeof album === 'string') {
+    normalizedAlbum = { id: '', name: cleanHtmlEntities(album), url: '' };
+  } else if (album && typeof album === 'object') {
+    normalizedAlbum = {
+      id: String(album.id ?? ''),
+      name: cleanHtmlEntities(String(album.name ?? '')),
+      url: String(album.url ?? ''),
+    };
+  } else {
+    normalizedAlbum = { id: '', name: '', url: '' };
+  }
+
+  return {
+    ...(r as unknown as JioSaavnSong),
+    name,
+    duration,
+    artists,
+    album: normalizedAlbum,
+    image: Array.isArray(r.image) ? (r.image as JioSaavnImage[]) : [],
+    downloadUrl: Array.isArray(r.downloadUrl) ? (r.downloadUrl as JioSaavnDownloadUrl[]) : [],
+  };
+}
+
 /** Unwrap common API envelopes: { data }, { data: { results } }, top-level array */
 function asSongArray(raw: unknown): JioSaavnSong[] {
-  if (Array.isArray(raw)) return raw as JioSaavnSong[];
-  if (raw && typeof raw === 'object') {
+  let list: unknown[] = [];
+  if (Array.isArray(raw)) {
+    list = raw;
+  } else if (raw && typeof raw === 'object') {
     const o = raw as Record<string, unknown>;
     const data = o.data;
-    if (Array.isArray(data)) return data as JioSaavnSong[];
-    if (data && typeof data === 'object') {
+    if (Array.isArray(data)) {
+      list = data;
+    } else if (data && typeof data === 'object') {
       const d = data as Record<string, unknown>;
-      if (Array.isArray(d.results)) return d.results as JioSaavnSong[];
-      if (Array.isArray(d.songs)) return d.songs as JioSaavnSong[];
+      if (Array.isArray(d.results)) list = d.results;
+      else if (Array.isArray(d.songs)) list = d.songs;
+    } else if (Array.isArray(o.results)) {
+      list = o.results;
+    } else if (Array.isArray(o.songs)) {
+      list = o.songs;
     }
-    if (Array.isArray(o.results)) return o.results as JioSaavnSong[];
-    if (Array.isArray(o.songs)) return o.songs as JioSaavnSong[];
   }
-  return [];
+  return list.map(normalizeSongItem);
 }
 
 function asAlbumArray(raw: unknown): JioSaavnAlbumListItem[] {
@@ -168,14 +242,25 @@ export async function searchAll(query: string): Promise<{
   albums: JioSaavnAlbumListItem[];
   artists: JioSaavnArtistListItem[];
 }> {
-  const json = await fetchJson<unknown>('/api/search', { query });
-  if (json && typeof json !== 'object') return { songs: [], albums: [], artists: [] };
-  const o = json as Record<string, unknown>;
-  const data = (o.data ?? o) as Record<string, unknown>;
+  const [allRes, songsRes] = await Promise.allSettled([
+    fetchJson<unknown>('/api/search', { query }),
+    fetchJson<unknown>('/api/search/songs', { query, limit: 20 }),
+  ]);
+
+  const allData =
+    allRes.status === 'fulfilled' && allRes.value && typeof allRes.value === 'object'
+      ? (((allRes.value as Record<string, unknown>).data ?? allRes.value) as Record<string, unknown>)
+      : {};
+
+  const richSongs = songsRes.status === 'fulfilled' ? asSongArray(songsRes.value) : [];
+  const basicSongs = asSongArray(allData.songs ?? allData);
+
+  const songs = richSongs.length > 0 ? richSongs : basicSongs;
+
   return {
-    songs: asSongArray(data.songs ?? data),
-    albums: asAlbumArray(data.albums ?? []),
-    artists: asArtistArray(data.artists ?? []),
+    songs,
+    albums: asAlbumArray(allData.albums ?? []),
+    artists: asArtistArray(allData.artists ?? []),
   };
 }
 

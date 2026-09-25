@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import TrackPlayer, { RepeatMode as RNTPRepeat, State, isPlaying as getIsPlayingUi } from 'react-native-track-player';
 import type { JioSaavnSong } from '../api/jiosaavn';
+import { getSongById } from '../api/jiosaavn';
 import { buildTrack } from '../utils/buildTrack';
 import { usePlayerStore, type RepeatMode } from '../store/playerStore';
 import { useSettingsStore } from '../store/settingsStore';
@@ -23,12 +24,24 @@ export function usePlayer() {
   const playQueue = useCallback(
     async (songs: JioSaavnSong[], startIndex = 0) => {
       if (!songs.length) return;
-      const tracks = songs.map((s) => buildTrack(s, audioQuality));
+      let resolvedSongs = songs;
+      const targetSong = songs[startIndex];
+      if (targetSong && (!targetSong.downloadUrl || targetSong.downloadUrl.length === 0)) {
+        try {
+          const detailed = await getSongById(targetSong.id);
+          if (detailed) {
+            resolvedSongs = songs.map((s, i) => (i === startIndex ? { ...s, ...detailed } : s));
+          }
+        } catch {
+          // ignore error
+        }
+      }
+      const tracks = resolvedSongs.map((s) => buildTrack(s, audioQuality));
       await TrackPlayer.reset();
       await TrackPlayer.add(tracks);
       const idx = Math.min(Math.max(0, startIndex), tracks.length - 1);
       if (idx > 0) await TrackPlayer.skip(idx);
-      usePlayerStore.getState().setQueue(songs, idx);
+      usePlayerStore.getState().setQueue(resolvedSongs, idx);
       const repeat = usePlayerStore.getState().repeat;
       await TrackPlayer.setRepeatMode(mapRepeat(repeat));
       await TrackPlayer.play();

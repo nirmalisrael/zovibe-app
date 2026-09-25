@@ -5,7 +5,7 @@ import { CoverImage } from '../ui/CoverImage';
 import { PlayingWaveIndicator } from '../ui/PlayingWaveIndicator';
 import { LanguageBadge } from '../ui/LanguageBadge';
 import { formatTime } from '../../utils/formatTime';
-import { getPrimaryArtistNames } from '../../utils/songHelpers';
+import { getPrimaryArtistNames, cleanHtmlEntities } from '../../utils/songHelpers';
 import { usePlayerStore } from '../../store/playerStore';
 import { colors, fonts, fontSize, spacing, borderRadius } from '../../theme';
 
@@ -34,6 +34,7 @@ export function SongRow({
   onLongPress,
 }: SongRowProps) {
   const artist = getPrimaryArtistNames(song);
+  const durLabel = formatTime(song.duration);
   const currentSongId = usePlayerStore((s) => s.currentSong?.id);
   const isPlayerRunning = usePlayerStore((s) => s.isPlaying);
   const isNowPlaying = currentSongId === song.id;
@@ -55,9 +56,9 @@ export function SongRow({
       <View style={styles.meta}>
         <View style={styles.titleRow}>
           <Text style={[styles.title, isNowPlaying && styles.titleNowPlaying]} numberOfLines={1}>
-            {song.name}
+            {cleanHtmlEntities(song.name)}
           </Text>
-          <Text style={styles.dur}>{formatTime(song.duration)}</Text>
+          {durLabel ? <Text style={styles.dur}>{durLabel}</Text> : null}
         </View>
         <View style={styles.subRow}>
           <Text style={styles.sub} numberOfLines={1}>

@@ -6,7 +6,7 @@ import { useQueries, useQueryClient } from '@tanstack/react-query';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { MOODS, type MoodType } from '../constants/moods';
 import { getLanguageQuerySuffix } from '../constants/languages';
-import { searchAll } from '../api/jiosaavn';
+import { searchAll, searchSongs } from '../api/jiosaavn';
 import type { JioSaavnSong } from '../api/jiosaavn';
 import { ScreenWrapper } from '../components/ui/ScreenWrapper';
 import { SongRowSkeleton } from '../components/ui/PageSkeletons';
@@ -48,6 +48,12 @@ export function MoodScreen() {
       return {
         queryKey: ['mood', mood, homeLanguageFilter, fullQ] as const,
         queryFn: async () => {
+          try {
+            const songs = await searchSongs(fullQ, 0, 15);
+            if (songs.length > 0) return songs;
+          } catch {
+            // fallback if searchSongs fails
+          }
           const { songs } = await searchAll(fullQ);
           return songs;
         },
