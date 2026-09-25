@@ -1,4 +1,5 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { colors, fonts, fontSize, spacing } from '../../theme';
 
 function greetingLine(): string {
@@ -57,9 +58,11 @@ function greetingLine(): string {
 
 export function GreetingHeader({
   onAvatarPress,
+  onSearchPress,
   initials,
 }: Readonly<{
   onAvatarPress: () => void;
+  onSearchPress?: () => void;
   initials: string;
 }>) {
   return (
@@ -68,14 +71,27 @@ export function GreetingHeader({
         <Text style={styles.wordCap}>Zo</Text>
         <Text style={styles.wordRest}>vibe</Text>
       </Text>
-      <Pressable
-        onPress={onAvatarPress}
-        style={({ pressed }) => [styles.avatar, pressed && styles.avatarPressed]}
-        accessibilityRole="button"
-        accessibilityLabel="Open profile"
-      >
-        <Text style={styles.ini}>{initials}</Text>
-      </Pressable>
+      <View style={styles.rightActions}>
+        {onSearchPress ? (
+          <Pressable
+            onPress={onSearchPress}
+            style={({ pressed }) => [styles.searchBtn, pressed && styles.actionPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Search songs"
+            hitSlop={6}
+          >
+            <Ionicons name="search-outline" size={18} color={colors.text.secondary} />
+          </Pressable>
+        ) : null}
+        <Pressable
+          onPress={onAvatarPress}
+          style={({ pressed }) => [styles.avatar, pressed && styles.avatarPressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Open profile"
+        >
+          <Text style={styles.ini}>{initials}</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -101,10 +117,29 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     textTransform: 'lowercase',
   },
+  rightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  searchBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.bg.secondary,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionPressed: {
+    opacity: 0.8,
+    backgroundColor: colors.bg.tertiary,
+  },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: colors.bg.tertiary,
     borderWidth: 2,
     borderColor: colors.border.strong,

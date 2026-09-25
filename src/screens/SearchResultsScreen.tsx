@@ -35,48 +35,75 @@ export function SearchResultsScreen() {
   const albums = q.data?.albums ?? [];
   const artists = q.data?.artists ?? [];
 
+  const hasResults = songs.length > 0 || albums.length > 0 || artists.length > 0;
+
   return (
     <ScreenWrapper style={{ paddingHorizontal: 0 }}>
       <View style={[styles.head, { paddingHorizontal: layout.screenPadding }]}>
-        <Pressable onPress={() => navigation.goBack()}>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <Ionicons name="chevron-back" size={28} color={colors.text.primary} />
         </Pressable>
-        <Text style={styles.title}>{title ?? query}</Text>
+        <Text style={styles.title} numberOfLines={1}>{title ?? query}</Text>
       </View>
       <ScrollView contentContainerStyle={{ paddingHorizontal: layout.screenPadding, paddingBottom: 120 }}>
         {q.isLoading ? (
           <SearchResultsSkeleton />
+        ) : !hasResults ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="search-outline" size={48} color={colors.text.tertiary} style={{ marginBottom: spacing[3] }} />
+            <Text style={styles.emptyTitle}>No results found</Text>
+            <Text style={styles.emptySubtitle}>We couldn't find any songs, albums, or artists for "{query}"</Text>
+          </View>
         ) : (
           <>
-            <Text style={styles.sec}>Songs</Text>
-            {songs.map((s, index) => (
-              <SongRow
-                key={s.id}
-                song={s}
-                onPress={() => void playQueue(songs, index)}
-                liked={isLiked(s.id)}
-                onToggleLike={() => user && void toggleLike(s.id, isLiked(s.id))}
-                showLike={!!user}
-                showAddToPlaylist={!!user}
-                onAddToPlaylist={() => openAddToPlaylist(s)}
-              />
-            ))}
-            <Text style={styles.sec}>Albums</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.h}>
-              {albums.map((a) => (
-                <AlbumCard key={a.id} album={a} onPress={() => navigation.navigate('Album', { albumId: a.id })} />
-              ))}
-            </ScrollView>
-            <Text style={styles.sec}>Artists</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.h}>
-              {artists.map((ar) => (
-                <ArtistCard
-                  key={ar.id}
-                  artist={ar}
-                  onPress={() => navigation.navigate('Artist', { artistId: ar.id })}
-                />
-              ))}
-            </ScrollView>
+            {songs.length > 0 ? (
+              <>
+                <Text style={styles.sec}>Songs</Text>
+                {songs.map((s, index) => (
+                  <SongRow
+                    key={s.id}
+                    song={s}
+                    onPress={() => void playQueue(songs, index)}
+                    liked={isLiked(s.id)}
+                    onToggleLike={() => user && void toggleLike(s.id, isLiked(s.id))}
+                    showLike={!!user}
+                    showAddToPlaylist={!!user}
+                    onAddToPlaylist={() => openAddToPlaylist(s)}
+                  />
+                ))}
+              </>
+            ) : null}
+
+            {albums.length > 0 ? (
+              <>
+                <Text style={styles.sec}>Albums</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.h}>
+                  {albums.map((a) => (
+                    <AlbumCard key={a.id} album={a} onPress={() => navigation.navigate('Album', { albumId: a.id })} />
+                  ))}
+                </ScrollView>
+              </>
+            ) : null}
+
+            {artists.length > 0 ? (
+              <>
+                <Text style={styles.sec}>Artists</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.h}>
+                  {artists.map((ar) => (
+                    <ArtistCard
+                      key={ar.id}
+                      artist={ar}
+                      onPress={() => navigation.navigate('Artist', { artistId: ar.id })}
+                    />
+                  ))}
+                </ScrollView>
+              </>
+            ) : null}
           </>
         )}
       </ScrollView>
@@ -87,6 +114,24 @@ export function SearchResultsScreen() {
 const styles = StyleSheet.create({
   head: { marginBottom: spacing[4] },
   title: { fontFamily: fonts.bold, fontSize: fontSize.xl, color: colors.text.primary, marginTop: spacing[2] },
-  sec: { fontFamily: fonts.bold, fontSize: fontSize.lg, color: colors.text.primary, marginTop: spacing[4] },
+  sec: { fontFamily: fonts.bold, fontSize: fontSize.lg, color: colors.text.primary, marginTop: spacing[4], marginBottom: spacing[2] },
   h: { gap: spacing[3], flexDirection: 'row' },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing[12],
+    paddingHorizontal: spacing[4],
+  },
+  emptyTitle: {
+    fontFamily: fonts.bold,
+    fontSize: fontSize.lg,
+    color: colors.text.primary,
+    marginBottom: spacing[2],
+  },
+  emptySubtitle: {
+    fontFamily: fonts.regular,
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
+    textAlign: 'center',
+  },
 });

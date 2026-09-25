@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ScrollView,
   View,
@@ -6,7 +6,9 @@ import {
   StyleSheet,
   Pressable,
   RefreshControl,
+  TextInput,
 } from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ScreenWrapper } from '../components/ui/ScreenWrapper';
@@ -37,7 +39,9 @@ import {
 import type { MoodType } from '../constants/moods';
 import { resolveUserAvatar } from '../entities';
 import type { HomeStackParamList } from '../navigation/types';
-import { colors, fonts, fontSize, spacing, layout } from '../theme';
+import { colors, fonts, fontSize, spacing, layout, borderRadius } from '../theme';
+
+const QUICK_SEARCH_CHIPS = ['Trending Hits', 'Top Songs', 'Acoustic', 'Melody', 'Party Beats'] as const;
 
 function showHomeLanguageSection(section: HomeAlbumSection, filter: LanguageFilterId) {
   if (filter === 'all' || filter === section) return true;
@@ -113,6 +117,23 @@ export function HomeScreen() {
 
   const trendingQueue = !isInitialLoading && !isError ? trendingSongs.slice(0, 8) : [];
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const searchInputRef = useRef<TextInput | null>(null);
+
+  const onSearchSubmit = useCallback(
+    (overrideQuery?: string) => {
+      const q = (overrideQuery ?? searchQuery).trim();
+      if (q.length > 0) {
+        navigation.navigate('SearchResults', {
+          query: q,
+          title: q,
+        });
+      }
+    },
+    [navigation, searchQuery]
+  );
+
   return (
     <ScreenErrorBoundary>
       <ScreenWrapper style={styles.screenNoPad}>
@@ -131,8 +152,89 @@ export function HomeScreen() {
             />
           }
         >
-          <GreetingHeader initials={initials} onAvatarPress={onAvatarPress} />
+          <GreetingHeader
+            initials={initials}
+            onAvatarPress={onAvatarPress}
+            onSearchPress={() => searchInputRef.current?.focus()}
+          />
           <Text style={styles.greet}>{greetingLine()}</Text>
+
+          {/* Search Bar for Songs */}
+          <View
+            style={[
+              styles.searchBar,
+              isSearchFocused && styles.searchBarFocused,
+            ]}
+          >
+            <Ionicons
+              name="search-outline"
+              size={18}
+              color={isSearchFocused ? colors.brand.primary : colors.text.tertiary}
+              style={styles.searchIcon}
+            />
+            <TextInput
+              ref={searchInputRef}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search songs, artists, albums..."
+              placeholderTextColor={colors.text.tertiary}
+              returnKeyType="search"
+              onSubmitEditing={() => onSearchSubmit()}
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => setIsSearchFocused(false)}
+              style={styles.searchInput}
+              accessibilityLabel="Search songs"
+            />
+            {searchQuery.length > 0 ? (
+              <View style={styles.searchActions}>
+                <Pressable
+                  onPress={() => setSearchQuery('')}
+                  style={styles.searchClearBtn}
+                  accessibilityLabel="Clear search"
+                  hitSlop={8}
+                >
+                  <Ionicons name="close-circle" size={17} color={colors.text.muted} />
+                </Pressable>
+                <Pressable
+                  onPress={() => onSearchSubmit()}
+                  style={styles.searchSubmitBtn}
+                  accessibilityLabel="Submit search"
+                  hitSlop={8}
+                >
+                  <Ionicons name="arrow-forward" size={14} color={colors.text.inverse} />
+                </Pressable>
+              </View>
+            ) : null}
+          </View>
+
+          {/* Quick Search Chips */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.quickChipsContainer}
+            style={styles.quickChipsWrapper}
+          >
+            {QUICK_SEARCH_CHIPS.map((chip) => (
+              <Pressable
+                key={chip}
+                onPress={() => {
+                  setSearchQuery(chip);
+                  onSearchSubmit(chip);
+                }}
+                style={({ pressed }) => [styles.quickChip, pressed && styles.quickChipPressed]}
+                accessibilityRole="button"
+                accessibilityLabel={`Search for ${chip}`}
+              >
+                <Ionicons
+                  name="sparkles-outline"
+                  size={12}
+                  color={colors.brand.light}
+                  style={{ marginRight: 5 }}
+                />
+                <Text style={styles.quickChipText}>{chip}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
 
           <Text style={styles.sectionLabel}>Your Vibe</Text>
           <MoodPillRow onSelect={onMoodSelect} />
@@ -260,7 +362,74 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     fontSize: fontSize.md,
     color: colors.text.secondary,
+    marginBottom: spacing[3],
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bg.secondary,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing[3],
+    height: 46,
+    marginBottom: spacing[2],
+  },
+  searchBarFocused: {
+    borderColor: colors.brand.primary,
+    backgroundColor: colors.bg.tertiary,
+  },
+  searchIcon: {
+    marginRight: spacing[2],
+  },
+  searchInput: {
+    flex: 1,
+    fontFamily: fonts.regular,
+    fontSize: fontSize.sm,
+    color: colors.text.primary,
+    paddingVertical: 0,
+  },
+  searchActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  searchClearBtn: {
+    padding: 2,
+  },
+  searchSubmitBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.brand.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickChipsWrapper: {
     marginBottom: spacing[4],
+  },
+  quickChipsContainer: {
+    gap: spacing[2],
+    paddingVertical: 2,
+  },
+  quickChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bg.secondary,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    paddingHorizontal: spacing[3],
+    paddingVertical: 6,
+    borderRadius: borderRadius.full,
+  },
+  quickChipPressed: {
+    borderColor: colors.brand.primary,
+    backgroundColor: colors.bg.tertiary,
+  },
+  quickChipText: {
+    fontFamily: fonts.medium,
+    fontSize: fontSize.xs,
+    color: colors.text.secondary,
   },
   sectionLabel: {
     fontFamily: fonts.medium,
