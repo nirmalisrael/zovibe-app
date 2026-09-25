@@ -142,12 +142,12 @@ const wfStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
-    height: 32,
-    marginBottom: spacing[2],
+    height: 18,
+    marginBottom: 4,
   },
   bar: {
     width: 3,
-    height: 24,
+    height: 14,
     borderRadius: 2,
     backgroundColor: colors.brand.light,
     transformOrigin: 'bottom',
@@ -377,44 +377,47 @@ const NowPlayingMeta = memo(function NowPlayingMeta({
     <View style={styles.titleBlock}>
       <View style={styles.titleRow}>
         <View style={styles.titleTextCol}>
-          <Text style={styles.title} numberOfLines={2} accessibilityRole="header">
+          <Text style={styles.title} numberOfLines={1} accessibilityRole="header">
             {current.name}
           </Text>
 
-          <Pressable
-            onPress={onArtist}
-            disabled={!canOpenArtist}
-            style={({ pressed }) => (canOpenArtist && pressed ? styles.linkPressed : undefined)}
-            accessibilityRole={canOpenArtist ? 'button' : 'text'}
-            accessibilityLabel={canOpenArtist ? `Open artist ${artistLabel}` : undefined}
-          >
-            <Text
-              style={[styles.artist, canOpenArtist ? styles.artistLink : styles.artistPlain]}
-              numberOfLines={1}
+          <View style={styles.artistAlbumRow}>
+            <Pressable
+              onPress={onArtist}
+              disabled={!canOpenArtist}
+              style={({ pressed }) => (canOpenArtist && pressed ? styles.linkPressed : undefined)}
+              accessibilityRole={canOpenArtist ? 'button' : 'text'}
+              accessibilityLabel={canOpenArtist ? `Open artist ${artistLabel}` : undefined}
             >
-              {artistLabel}
-              {canOpenArtist ? <Text style={styles.chevronHint}>  ›</Text> : null}
-            </Text>
-          </Pressable>
+              <Text
+                style={[styles.artist, canOpenArtist ? styles.artistLink : styles.artistPlain]}
+                numberOfLines={1}
+              >
+                {artistLabel}
+              </Text>
+            </Pressable>
 
-          <Pressable
-            onPress={onAlbum}
-            disabled={!canOpenAlbum}
-            style={({ pressed }) => (canOpenAlbum && pressed ? styles.linkPressed : undefined)}
-            accessibilityRole={canOpenAlbum ? 'button' : 'text'}
-            accessibilityLabel={canOpenAlbum ? `Open album ${albumLabel}` : undefined}
-          >
-            <Text
-              style={[styles.albumLine, canOpenAlbum ? styles.albumLink : styles.albumPlain]}
-              numberOfLines={1}
-            >
-              {albumLabel}
-              {canOpenAlbum ? <Text style={styles.chevronHint}>  ›</Text> : null}
-            </Text>
-          </Pressable>
+            {canOpenAlbum ? (
+              <>
+                <Text style={styles.bulletDot}> • </Text>
+                <Pressable
+                  onPress={onAlbum}
+                  style={({ pressed }) => (pressed ? styles.linkPressed : undefined)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open album ${albumLabel}`}
+                >
+                  <Text style={styles.albumLine} numberOfLines={1}>
+                    {albumLabel}
+                  </Text>
+                </Pressable>
+              </>
+            ) : null}
 
-          <View style={styles.badgeRow}>
-            <LanguageBadge language={current.language || 'music'} />
+            {current.language ? (
+              <View style={styles.badgeWrap}>
+                <LanguageBadge language={current.language} />
+              </View>
+            ) : null}
           </View>
         </View>
 
@@ -616,51 +619,6 @@ const DividerPill = memo(function DividerPill() {
   return <View style={styles.dividerPill} />;
 });
 
-// ─── BlurBody — stable memoized to prevent BlurView remounts ─────────────────
-const BlurBody = memo(function BlurBody({
-  topPad,
-  scrollBottom,
-  swipeDown,
-  children,
-}: {
-  topPad: number;
-  scrollBottom: number;
-  swipeDown: ReturnType<typeof Gesture.Pan>;
-  children: React.ReactNode;
-}) {
-  return (
-    <BlurView intensity={Platform.OS === 'ios' ? 48 : 72} tint="dark" style={styles.blur}>
-      <View style={styles.blurInner}>
-        <View style={[styles.topBarSlot, { paddingTop: topPad, paddingHorizontal: layout.screenPadding }]}>
-          <GestureDetector gesture={swipeDown}>
-            <View>{/* Children: TopBar */}
-              {(children as any)[0]}
-            </View>
-          </GestureDetector>
-        </View>
-        <ScrollView
-          style={styles.scrollFlex}
-          contentContainerStyle={[
-            styles.scroll,
-            {
-              paddingTop: spacing[2],
-              paddingBottom: scrollBottom,
-              paddingHorizontal: layout.screenPadding,
-            },
-          ]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          bounces
-        >
-          <View style={styles.contentColumn}>
-            {(children as any).slice(1)}
-          </View>
-        </ScrollView>
-      </View>
-    </BlurView>
-  );
-});
-
 // ─── Scrubber + time labels (isolated to prevent full-screen re-renders) ───────
 const NowPlayingScrubber = memo(function NowPlayingScrubber({
   seekTo,
@@ -821,11 +779,17 @@ const NowPlayingBottomSection = memo(function NowPlayingBottomSection({
         {activeTab === 'queue' ? (
           queue.length === 0 ? (
             <View style={bottomStyles.emptyWrap}>
-              <Ionicons name="musical-notes-outline" size={28} color={colors.text.tertiary} />
+              <Ionicons name="musical-notes-outline" size={26} color={colors.text.tertiary} />
               <Text style={bottomStyles.emptyText}>Queue is empty</Text>
             </View>
           ) : (
-            <View style={bottomStyles.listWrap}>
+            <ScrollView
+              style={bottomStyles.scrollArea}
+              contentContainerStyle={bottomStyles.scrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled
+            >
               {queue.map((item, index) => (
                 <SongRow
                   key={`${item.id}-${index}`}
@@ -841,16 +805,16 @@ const NowPlayingBottomSection = memo(function NowPlayingBottomSection({
                   onAddToPlaylist={userId ? () => openAddToPlaylist(item) : undefined}
                 />
               ))}
-            </View>
+            </ScrollView>
           )
         ) : !userId ? (
           <View style={bottomStyles.emptyWrap}>
-            <Ionicons name="lock-closed-outline" size={28} color={colors.text.tertiary} />
+            <Ionicons name="lock-closed-outline" size={26} color={colors.text.tertiary} />
             <Text style={bottomStyles.emptyText}>Sign in to view favorite songs</Text>
           </View>
         ) : likedIds.length === 0 ? (
           <View style={bottomStyles.emptyWrap}>
-            <Ionicons name="heart-outline" size={28} color={colors.text.tertiary} />
+            <Ionicons name="heart-outline" size={26} color={colors.text.tertiary} />
             <Text style={bottomStyles.emptyText}>No favorite songs yet</Text>
             <Text style={bottomStyles.emptySubText}>
               Tap the heart icon on any track to save it here
@@ -863,11 +827,17 @@ const NowPlayingBottomSection = memo(function NowPlayingBottomSection({
           </View>
         ) : favoriteSongs.length === 0 ? (
           <View style={bottomStyles.emptyWrap}>
-            <Ionicons name="alert-circle-outline" size={28} color={colors.text.tertiary} />
+            <Ionicons name="alert-circle-outline" size={26} color={colors.text.tertiary} />
             <Text style={bottomStyles.emptyText}>Unable to load favorites</Text>
           </View>
         ) : (
-          <View style={bottomStyles.listWrap}>
+          <ScrollView
+            style={bottomStyles.scrollArea}
+            contentContainerStyle={bottomStyles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
+          >
             {favoriteSongs.map((item, index) => (
               <SongRow
                 key={`${item.id}-${index}`}
@@ -883,7 +853,7 @@ const NowPlayingBottomSection = memo(function NowPlayingBottomSection({
                 onAddToPlaylist={userId ? () => openAddToPlaylist(item) : undefined}
               />
             ))}
-          </View>
+          </ScrollView>
         )}
       </View>
     </View>
@@ -1079,8 +1049,7 @@ export function NowPlayingScreen() {
 
   const liked = isLiked(current.id);
   const scrollBottom = Math.max(insets.bottom, spacing[4]) + spacing[6];
-  const coverWidth = layout.screenWidth - layout.screenPadding * 2 - 16;
-  const coverSize = Math.min(Math.max(coverWidth, 220), 288);
+  const coverSize = Math.min(Math.max(Math.round(layout.screenWidth * 0.32), 110), 140);
   const topPad = Math.max(insets.top, spacing[2]);
   const hasBgArt = art.trim().length > 0;
 
@@ -1117,24 +1086,19 @@ export function NowPlayingScreen() {
               </GestureDetector>
             </View>
 
-            {/* Scrollable content */}
-            <ScrollView
-              style={styles.scrollFlex}
-              contentContainerStyle={[
-                styles.scroll,
+            {/* Main content: Static Player Hero + Scrollable Songs List */}
+            <View
+              style={[
+                styles.mainLayout,
                 {
-                  paddingTop: spacing[2],
-                  paddingBottom: scrollBottom,
                   paddingHorizontal: layout.screenPadding,
+                  paddingBottom: Math.max(insets.bottom, spacing[3]),
                 },
               ]}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              bounces
             >
-              <View style={styles.contentColumn}>
-
-                {/* ── Cover art (swipe + double-tap) ── */}
+              {/* ── Static Top Player Hero ── */}
+              <View style={styles.staticHero}>
+                {/* ── Cover art (compact: 140px, swipe + double-tap) ── */}
                 <CoverArt
                   uri={art || undefined}
                   size={coverSize}
@@ -1144,10 +1108,10 @@ export function NowPlayingScreen() {
                   onDoubleTap={onDoubleTapCover}
                 />
 
-                {/* ── Waveform visualizer ── */}
+                {/* ── Waveform visualizer (compact) ── */}
                 <WaveformVisualizer isPlaying={isPlaying} />
 
-                {/* ── Meta ── */}
+                {/* ── Meta (compact title, artist, album, like) ── */}
                 <NowPlayingMeta
                   current={current}
                   userId={userId}
@@ -1160,10 +1124,10 @@ export function NowPlayingScreen() {
                   onAlbum={goToAlbum}
                 />
 
-                {/* ── Scrubber + time labels (isolated to prevent full-screen re-renders) ── */}
+                {/* ── Scrubber + time labels (compact bar) ── */}
                 <NowPlayingScrubber seekTo={seekTo} />
 
-                {/* ── Playback controls ── */}
+                {/* ── Playback controls (static) ── */}
                 <PlayerControls
                   isPlaying={isPlaying}
                   shuffle={shuffle}
@@ -1175,28 +1139,27 @@ export function NowPlayingScreen() {
                   onRepeat={cycleRepeat}
                 />
 
-                {/* ── Lyrics ── */}
+                {/* ── Lyrics (compact row if lyrics available) ── */}
                 {current.hasLyrics ? (
-                  <>
-                    <DividerPill />
+                  <View style={styles.compactLyricsRow}>
                     <LyricsButton onPress={goToLyrics} />
-                  </>
+                  </View>
                 ) : null}
-
-                {/* ── Up Next / Queue & Favorites bottom section (utilizes bottom space) ── */}
-                <NowPlayingBottomSection
-                  queue={queue}
-                  currentTrackId={current.id}
-                  userId={userId}
-                  userLikedSongs={user?.likedSongs}
-                  onPlayQueueIndex={onQueuePlayIndex}
-                  onPlayFavorites={onPlayFavorites}
-                  isLiked={isLiked}
-                  toggleLike={toggleLike}
-                  openAddToPlaylist={openAddToPlaylist}
-                />
               </View>
-            </ScrollView>
+
+              {/* ── ONLY Scroll the Song List (flex: 1) ── */}
+              <NowPlayingBottomSection
+                queue={queue}
+                currentTrackId={current.id}
+                userId={userId}
+                userLikedSongs={user?.likedSongs}
+                onPlayQueueIndex={onQueuePlayIndex}
+                onPlayFavorites={onPlayFavorites}
+                isLiked={isLiked}
+                toggleLike={toggleLike}
+                openAddToPlaylist={openAddToPlaylist}
+              />
+            </View>
           </View>
         </BlurView>
       </View>
@@ -1228,10 +1191,16 @@ const styles = StyleSheet.create({
   blur: { flex: 1 },
   blurInner: { flex: 1 },
   topBarSlot: { width: '100%' },
-  scrollFlex: { flex: 1 },
-  scroll: { alignItems: 'center' },
+  mainLayout: {
+    flex: 1,
+    width: '100%',
+    alignItems: 'center',
+  },
+  staticHero: {
+    width: '100%',
+    alignItems: 'center',
+  },
   swipeDismissFill: { flex: 1 },
-  contentColumn: { width: '100%', alignItems: 'center' },
 
   // ── Top bar ──
   top: {
@@ -1239,11 +1208,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing[4],
+    marginBottom: spacing[2],
   },
   closeBtn: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: borderRadius.full,
@@ -1258,31 +1227,31 @@ const styles = StyleSheet.create({
   },
   kicker: {
     fontFamily: fonts.bold,
-    fontSize: fontSize.xs,
+    fontSize: 10,
     color: colors.text.tertiary,
     textTransform: 'uppercase',
     letterSpacing: 1.2,
   },
   nowPlayingLabel: {
     fontFamily: fonts.medium,
-    fontSize: fontSize.sm,
+    fontSize: fontSize.xs,
     color: colors.text.secondary,
-    marginTop: spacing[1],
+    marginTop: 2,
   },
 
-  // ── Cover ──
+  // ── Cover (compact) ──
   coverWrap: {
-    marginBottom: spacing[3],
+    marginBottom: spacing[1],
     position: 'relative',
-    borderRadius: borderRadius.xl,
+    borderRadius: borderRadius.lg,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 20 },
-        shadowOpacity: 0.65,
-        shadowRadius: 36,
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.5,
+        shadowRadius: 18,
       },
-      android: { elevation: 20 },
+      android: { elevation: 8 },
     }),
   },
   coverPlaceholder: {
@@ -1298,67 +1267,78 @@ const styles = StyleSheet.create({
     left: 0,
     height: '36%',
     backgroundColor: NP.sheen,
-    borderTopLeftRadius: borderRadius.xl,
-    borderTopRightRadius: borderRadius.xl,
+    borderTopLeftRadius: borderRadius.lg,
+    borderTopRightRadius: borderRadius.lg,
   },
   heartBurstWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: borderRadius.xl,
+    borderRadius: borderRadius.lg,
   },
 
-  // ── Meta ──
-  titleBlock: { width: '100%', marginBottom: spacing[2], marginTop: spacing[2] },
-  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing[3] },
+  // ── Meta (compact) ──
+  titleBlock: { width: '100%', marginBottom: 4, marginTop: 2 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing[2] },
   titleTextCol: { flex: 1, minWidth: 0 },
   title: {
     fontFamily: fonts.bold,
-    fontSize: fontSize['2xl'],
+    fontSize: fontSize.md + 2,
     color: colors.text.primary,
-    lineHeight: 34,
-    letterSpacing: -0.4,
+    lineHeight: 22,
+    letterSpacing: -0.2,
   },
-  artist: { fontFamily: fonts.medium, fontSize: fontSize.md, marginTop: spacing[2] },
+  artistAlbumRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'nowrap',
+    marginTop: 2,
+  },
+  artist: { fontFamily: fonts.medium, fontSize: fontSize.xs + 1 },
   artistLink: { color: colors.brand.light },
   artistPlain: { color: colors.text.secondary },
   albumLine: {
     fontFamily: fonts.regular,
-    fontSize: fontSize.sm,
-    marginTop: spacing[1],
+    fontSize: fontSize.xs,
+    color: colors.text.tertiary,
+    maxWidth: 160,
   },
-  albumLink: { color: colors.text.secondary },
-  albumPlain: { color: colors.text.tertiary },
+  bulletDot: { color: colors.text.tertiary, fontSize: 10 },
+  badgeWrap: { marginLeft: spacing[2] },
   chevronHint: { color: colors.text.tertiary, fontFamily: fonts.regular },
   linkPressed: { opacity: 0.72 },
-  badgeRow: { marginTop: spacing[3], alignSelf: 'flex-start' },
   metaActions: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: spacing[1],
-    marginTop: spacing[1],
   },
   likeWrap: {
     padding: spacing[1],
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  // ── Scrubber ──
-  scrubberBlock: { width: '100%', marginTop: spacing[4] },
+  // ── Scrubber (compact) ──
+  scrubberBlock: { width: '100%', marginTop: spacing[1] },
   times: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: spacing[1],
-    marginTop: spacing[1],
+    marginTop: 2,
   },
   timeLabel: {
     fontFamily: fonts.regular,
-    fontSize: fontSize.xs,
+    fontSize: 11,
     color: colors.text.tertiary,
     fontVariant: ['tabular-nums'],
     letterSpacing: 0.2,
+  },
+
+  // ── Compact lyrics row ──
+  compactLyricsRow: {
+    width: '100%',
+    marginTop: spacing[1],
   },
 
   // ── Divider ──
@@ -1497,22 +1477,23 @@ const styles = StyleSheet.create({
 
 const bottomStyles = StyleSheet.create({
   container: {
+    flex: 1,
     width: '100%',
-    marginTop: spacing[5],
+    marginTop: spacing[2],
   },
   tabBar: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[2],
-    marginBottom: spacing[3],
+    marginBottom: spacing[2],
     paddingHorizontal: spacing[1],
   },
   tabBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing[2],
-    paddingVertical: spacing[2],
-    paddingHorizontal: spacing[3] + 2,
+    gap: spacing[1] + 2,
+    paddingVertical: 5,
+    paddingHorizontal: spacing[3],
     borderRadius: borderRadius.full,
     backgroundColor: 'rgba(28, 28, 35, 0.65)',
     borderWidth: 1,
@@ -1524,14 +1505,14 @@ const bottomStyles = StyleSheet.create({
   },
   tabText: {
     fontFamily: fonts.medium,
-    fontSize: fontSize.sm,
+    fontSize: fontSize.xs + 1,
     color: colors.text.tertiary,
   },
   tabTextActive: {
     color: colors.text.primary,
   },
   countBadge: {
-    paddingHorizontal: 6,
+    paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: borderRadius.full,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
@@ -1548,21 +1529,25 @@ const bottomStyles = StyleSheet.create({
     color: colors.brand.light,
   },
   card: {
+    flex: 1,
     width: '100%',
     borderRadius: borderRadius.xl,
     backgroundColor: 'rgba(20, 20, 26, 0.65)',
     borderWidth: 1,
     borderColor: 'rgba(41, 41, 50, 0.65)',
     overflow: 'hidden',
-    paddingVertical: spacing[1],
   },
-  listWrap: {
-    width: '100%',
+  scrollArea: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingVertical: spacing[1],
+    paddingBottom: spacing[4],
   },
   emptyWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing[8],
+    paddingVertical: spacing[6],
     paddingHorizontal: spacing[4],
     gap: spacing[2],
   },

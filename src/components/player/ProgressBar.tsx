@@ -10,9 +10,9 @@ type ProgressBarProps = Readonly<{
   onHoldSecondsChange?: (heldSeconds: number | null) => void;
 }>;
 
-const TRACK_HEIGHT = 5;
-const THUMB_SIZE = 15;
-const HIT_HEIGHT = 48;
+const TRACK_HEIGHT = 4;
+const THUMB_SIZE = 13;
+const HIT_HEIGHT = 32;
 const IDLE_SYNC_MS = 220;
 
 /**
