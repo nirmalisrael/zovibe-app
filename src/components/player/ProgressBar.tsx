@@ -153,7 +153,6 @@ export function ProgressBar({
       if (Math.abs(position - pendingSeekSec) <= tolerance) {
         setPendingSeekSec(null);
         const ratio = Math.min(position / maxVal, 1);
-        setLocalRatio(ratio);
         Animated.timing(fillRatio, {
           toValue: ratio,
           duration: IDLE_SYNC_MS,
@@ -162,13 +161,11 @@ export function ProgressBar({
         return;
       }
       const r = Math.min(pendingSeekSec / maxVal, 1);
-      setLocalRatio(r);
       fillRatio.setValue(r);
       return;
     }
 
     const ratio = Math.min(position / maxVal, 1);
-    setLocalRatio(ratio);
     Animated.timing(fillRatio, {
       toValue: ratio,
       duration: IDLE_SYNC_MS,
@@ -185,7 +182,7 @@ export function ProgressBar({
   };
 
   const a11yNow = Math.floor(
-    sliding || pendingSeekSec != null ? localRatio * duration : position
+    sliding ? localRatio * duration : pendingSeekSec != null ? pendingSeekSec : position
   );
 
   return (

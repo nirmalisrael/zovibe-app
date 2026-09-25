@@ -22,21 +22,25 @@ import {
   Animated,
   FlatList,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useProgress, useActiveTrack } from 'react-native-track-player';
+import { useQuery } from '@tanstack/react-query';
 import { BlurView } from '../components/ui/BlurView';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { usePlayerStore } from '../store/playerStore';
-import { useNowPlaying } from '../hooks/useNowPlaying';
 import { usePlayer } from '../hooks/usePlayer';
 import { useLikedSongs } from '../hooks/useLikedSongs';
 import { useAuthStore } from '../store/authStore';
 import { addRecentlyPlayed, parseJsonArray } from '../api/mockapi';
 import type { JioSaavnSong } from '../api/jiosaavn';
+import { getSongById } from '../api/jiosaavn';
+import { queryKeys } from '../hooks/queryKeys';
 import { CoverImage } from '../components/ui/CoverImage';
 import { NowPlayingSkeleton } from '../components/ui/PageSkeletons';
 import { LanguageBadge } from '../components/ui/LanguageBadge';
@@ -657,6 +661,235 @@ const BlurBody = memo(function BlurBody({
   );
 });
 
+// ─── Scrubber + time labels (isolated to prevent full-screen re-renders) ───────
+const NowPlayingScrubber = memo(function NowPlayingScrubber({
+  seekTo,
+}: {
+  seekTo: (sec: number) => void;
+}) {
+  const { position, duration } = useProgress(250);
+  const [scrubHeldSec, setScrubHeldSec] = useState<number | null>(null);
+
+  return (
+    <View style={styles.scrubberBlock}>
+      <ProgressBar
+        duration={duration}
+        position={position}
+        onSeek={(s) => seekTo(s)}
+        onHoldSecondsChange={setScrubHeldSec}
+      />
+      <View style={styles.times}>
+        <Text style={styles.timeLabel}>{formatTime(scrubHeldSec ?? position)}</Text>
+        <Text style={styles.timeLabel}>{formatTime(duration)}</Text>
+      </View>
+    </View>
+  );
+});
+
+// ─── Bottom Up-Next / Queue & Favorites Selection Section ────────────────────
+type BottomSectionTab = 'queue' | 'favorites';
+
+const NowPlayingBottomSection = memo(function NowPlayingBottomSection({
+  queue,
+  currentTrackId,
+  userId,
+  userLikedSongs,
+  onPlayQueueIndex,
+  onPlayFavorites,
+  isLiked,
+  toggleLike,
+  openAddToPlaylist,
+}: {
+  queue: JioSaavnSong[];
+  currentTrackId: string | undefined;
+  userId: string | null;
+  userLikedSongs: string | undefined;
+  onPlayQueueIndex: (index: number) => void;
+  onPlayFavorites: (songs: JioSaavnSong[], index: number) => void;
+  isLiked: (id: string) => boolean;
+  toggleLike: (id: string, liked: boolean) => void;
+  openAddToPlaylist: (song: JioSaavnSong) => void;
+}) {
+  const [activeTab, setActiveTab] = useState<BottomSectionTab>('queue');
+
+  const likedIds = useMemo(
+    () => (userLikedSongs ? parseJsonArray<string>(userLikedSongs, []) : []),
+    [userLikedSongs]
+  );
+
+  const likedSongsQ = useQuery({
+    queryKey: queryKeys.likedSongs(likedIds.join(',')),
+    queryFn: async () => {
+      const results = await Promise.allSettled(
+        likedIds.slice(0, 50).map((id) => getSongById(id))
+      );
+      return results
+        .filter((r): r is PromiseFulfilledResult<JioSaavnSong> => r.status === 'fulfilled' && !!r.value)
+        .map((r) => r.value);
+    },
+    enabled: activeTab === 'favorites' && !!userId && likedIds.length > 0,
+    staleTime: 60_000,
+  });
+
+  const favoriteSongs = likedSongsQ.data ?? [];
+
+  return (
+    <View style={bottomStyles.container}>
+      {/* Tab Switcher */}
+      <View style={bottomStyles.tabBar}>
+        <Pressable
+          style={[
+            bottomStyles.tabBtn,
+            activeTab === 'queue' && bottomStyles.tabBtnActive,
+          ]}
+          onPress={() => setActiveTab('queue')}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: activeTab === 'queue' }}
+        >
+          <Ionicons
+            name="list"
+            size={16}
+            color={activeTab === 'queue' ? colors.brand.light : colors.text.tertiary}
+          />
+          <Text
+            style={[
+              bottomStyles.tabText,
+              activeTab === 'queue' && bottomStyles.tabTextActive,
+            ]}
+          >
+            Up Next
+          </Text>
+          <View
+            style={[
+              bottomStyles.countBadge,
+              activeTab === 'queue' && bottomStyles.countBadgeActive,
+            ]}
+          >
+            <Text
+              style={[
+                bottomStyles.countBadgeText,
+                activeTab === 'queue' && bottomStyles.countBadgeTextActive,
+              ]}
+            >
+              {queue.length}
+            </Text>
+          </View>
+        </Pressable>
+
+        <Pressable
+          style={[
+            bottomStyles.tabBtn,
+            activeTab === 'favorites' && bottomStyles.tabBtnActive,
+          ]}
+          onPress={() => setActiveTab('favorites')}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: activeTab === 'favorites' }}
+        >
+          <Ionicons
+            name="heart"
+            size={15}
+            color={activeTab === 'favorites' ? colors.accent.pink : colors.text.tertiary}
+          />
+          <Text
+            style={[
+              bottomStyles.tabText,
+              activeTab === 'favorites' && bottomStyles.tabTextActive,
+            ]}
+          >
+            Favorites
+          </Text>
+          <View
+            style={[
+              bottomStyles.countBadge,
+              activeTab === 'favorites' && bottomStyles.countBadgeActive,
+            ]}
+          >
+            <Text
+              style={[
+                bottomStyles.countBadgeText,
+                activeTab === 'favorites' && bottomStyles.countBadgeTextActive,
+              ]}
+            >
+              {likedIds.length}
+            </Text>
+          </View>
+        </Pressable>
+      </View>
+
+      {/* Content */}
+      <View style={bottomStyles.card}>
+        {activeTab === 'queue' ? (
+          queue.length === 0 ? (
+            <View style={bottomStyles.emptyWrap}>
+              <Ionicons name="musical-notes-outline" size={28} color={colors.text.tertiary} />
+              <Text style={bottomStyles.emptyText}>Queue is empty</Text>
+            </View>
+          ) : (
+            <View style={bottomStyles.listWrap}>
+              {queue.map((item, index) => (
+                <SongRow
+                  key={`${item.id}-${index}`}
+                  song={item}
+                  index={index + 1}
+                  onPress={() => onPlayQueueIndex(index)}
+                  liked={isLiked(item.id)}
+                  onToggleLike={
+                    userId ? () => toggleLike(item.id, isLiked(item.id)) : undefined
+                  }
+                  showLike={!!userId}
+                  showAddToPlaylist={!!userId}
+                  onAddToPlaylist={userId ? () => openAddToPlaylist(item) : undefined}
+                />
+              ))}
+            </View>
+          )
+        ) : !userId ? (
+          <View style={bottomStyles.emptyWrap}>
+            <Ionicons name="lock-closed-outline" size={28} color={colors.text.tertiary} />
+            <Text style={bottomStyles.emptyText}>Sign in to view favorite songs</Text>
+          </View>
+        ) : likedIds.length === 0 ? (
+          <View style={bottomStyles.emptyWrap}>
+            <Ionicons name="heart-outline" size={28} color={colors.text.tertiary} />
+            <Text style={bottomStyles.emptyText}>No favorite songs yet</Text>
+            <Text style={bottomStyles.emptySubText}>
+              Tap the heart icon on any track to save it here
+            </Text>
+          </View>
+        ) : likedSongsQ.isLoading ? (
+          <View style={bottomStyles.loadingWrap}>
+            <ActivityIndicator size="small" color={colors.brand.primary} />
+            <Text style={bottomStyles.loadingText}>Loading favorites…</Text>
+          </View>
+        ) : favoriteSongs.length === 0 ? (
+          <View style={bottomStyles.emptyWrap}>
+            <Ionicons name="alert-circle-outline" size={28} color={colors.text.tertiary} />
+            <Text style={bottomStyles.emptyText}>Unable to load favorites</Text>
+          </View>
+        ) : (
+          <View style={bottomStyles.listWrap}>
+            {favoriteSongs.map((item, index) => (
+              <SongRow
+                key={`${item.id}-${index}`}
+                song={item}
+                index={index + 1}
+                onPress={() => onPlayFavorites(favoriteSongs, index)}
+                liked={isLiked(item.id)}
+                onToggleLike={
+                  userId ? () => toggleLike(item.id, isLiked(item.id)) : undefined
+                }
+                showLike={!!userId}
+                showAddToPlaylist={!!userId}
+                onAddToPlaylist={userId ? () => openAddToPlaylist(item) : undefined}
+              />
+            ))}
+          </View>
+        )}
+      </View>
+    </View>
+  );
+});
+
 // ─── Main screen ──────────────────────────────────────────────────────────────
 export function NowPlayingScreen() {
   const navigation = useNavigation<MainNav>();
@@ -666,15 +899,16 @@ export function NowPlayingScreen() {
 
   const storeCurrent = usePlayerStore((s) => s.currentSong);
   const queue = usePlayerStore((s) => s.queue);
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
   const shuffle = usePlayerStore((s) => s.shuffle);
   const repeat = usePlayerStore((s) => s.repeat);
   const userId = useAuthStore((s) => s.userId);
   const user = useAuthStore((s) => s.user);
   const refreshUser = useAuthStore((s) => s.refreshUser);
 
-  // ── Interval lowered to 250 ms for tighter scrubber feel ──
-  const { position, duration, isPlaying, activeTrack } = useNowPlaying(250);
+  const activeTrack = useActiveTrack();
   const {
+    playQueue,
     togglePlay,
     skipToNext,
     skipToPrevious,
@@ -687,8 +921,6 @@ export function NowPlayingScreen() {
   const { openAddToPlaylist } = useAddToPlaylist();
 
   const [queueVisible, setQueueVisible] = useState(false);
-
-  const [scrubHeldSec, setScrubHeldSec] = useState<number | null>(null);
 
   const current = useMemo(() => {
     if (storeCurrent) return storeCurrent;
@@ -707,11 +939,13 @@ export function NowPlayingScreen() {
   const [hydrateTimedOut, setHydrateTimedOut] = useState(false);
 
   useEffect(() => {
-    if (current) { setHydrateTimedOut(false); return; }
-    if (!expectingTrack) { setHydrateTimedOut(false); return; }
+    if (current || !expectingTrack) {
+      setHydrateTimedOut((prev) => (prev ? false : prev));
+      return;
+    }
     const t = setTimeout(() => setHydrateTimedOut(true), 2800);
     return () => clearTimeout(t);
-  }, [current, expectingTrack]);
+  }, [current?.id, expectingTrack]);
 
   const queueIndex = useMemo(
     () => (current ? queue.findIndex((s) => s.id === current.id) : -1),
@@ -788,6 +1022,13 @@ export function NowPlayingScreen() {
       void skipToQueueIndex(index);
     },
     [skipToQueueIndex]
+  );
+
+  const onPlayFavorites = useCallback(
+    (favSongs: JioSaavnSong[], index: number) => {
+      void playQueue(favSongs, index);
+    },
+    [playQueue]
   );
 
   const swipeDownToClose = useMemo(
@@ -919,19 +1160,8 @@ export function NowPlayingScreen() {
                   onAlbum={goToAlbum}
                 />
 
-                {/* ── Scrubber + time labels ── */}
-                <View style={styles.scrubberBlock}>
-                  <ProgressBar
-                    duration={duration}
-                    position={position}
-                    onSeek={(s) => seekTo(s)}
-                    onHoldSecondsChange={setScrubHeldSec}
-                  />
-                  <View style={styles.times}>
-                    <Text style={styles.timeLabel}>{formatTime(scrubHeldSec ?? position)}</Text>
-                    <Text style={styles.timeLabel}>{formatTime(duration)}</Text>
-                  </View>
-                </View>
+                {/* ── Scrubber + time labels (isolated to prevent full-screen re-renders) ── */}
+                <NowPlayingScrubber seekTo={seekTo} />
 
                 {/* ── Playback controls ── */}
                 <PlayerControls
@@ -952,6 +1182,19 @@ export function NowPlayingScreen() {
                     <LyricsButton onPress={goToLyrics} />
                   </>
                 ) : null}
+
+                {/* ── Up Next / Queue & Favorites bottom section (utilizes bottom space) ── */}
+                <NowPlayingBottomSection
+                  queue={queue}
+                  currentTrackId={current.id}
+                  userId={userId}
+                  userLikedSongs={user?.likedSongs}
+                  onPlayQueueIndex={onQueuePlayIndex}
+                  onPlayFavorites={onPlayFavorites}
+                  isLiked={isLiked}
+                  toggleLike={toggleLike}
+                  openAddToPlaylist={openAddToPlaylist}
+                />
               </View>
             </ScrollView>
           </View>
@@ -1249,5 +1492,100 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     fontSize: fontSize.md,
     color: colors.text.inverse,
+  },
+});
+
+const bottomStyles = StyleSheet.create({
+  container: {
+    width: '100%',
+    marginTop: spacing[5],
+  },
+  tabBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    marginBottom: spacing[3],
+    paddingHorizontal: spacing[1],
+  },
+  tabBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    paddingVertical: spacing[2],
+    paddingHorizontal: spacing[3] + 2,
+    borderRadius: borderRadius.full,
+    backgroundColor: 'rgba(28, 28, 35, 0.65)',
+    borderWidth: 1,
+    borderColor: 'rgba(41, 41, 50, 0.6)',
+  },
+  tabBtnActive: {
+    backgroundColor: 'rgba(139, 92, 246, 0.18)',
+    borderColor: 'rgba(139, 92, 246, 0.45)',
+  },
+  tabText: {
+    fontFamily: fonts.medium,
+    fontSize: fontSize.sm,
+    color: colors.text.tertiary,
+  },
+  tabTextActive: {
+    color: colors.text.primary,
+  },
+  countBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: borderRadius.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  countBadgeActive: {
+    backgroundColor: 'rgba(139, 92, 246, 0.35)',
+  },
+  countBadgeText: {
+    fontFamily: fonts.bold,
+    fontSize: 10,
+    color: colors.text.tertiary,
+  },
+  countBadgeTextActive: {
+    color: colors.brand.light,
+  },
+  card: {
+    width: '100%',
+    borderRadius: borderRadius.xl,
+    backgroundColor: 'rgba(20, 20, 26, 0.65)',
+    borderWidth: 1,
+    borderColor: 'rgba(41, 41, 50, 0.65)',
+    overflow: 'hidden',
+    paddingVertical: spacing[1],
+  },
+  listWrap: {
+    width: '100%',
+  },
+  emptyWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing[8],
+    paddingHorizontal: spacing[4],
+    gap: spacing[2],
+  },
+  emptyText: {
+    fontFamily: fonts.medium,
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
+  },
+  emptySubText: {
+    fontFamily: fonts.regular,
+    fontSize: fontSize.xs,
+    color: colors.text.tertiary,
+  },
+  loadingWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing[6],
+    gap: spacing[2],
+  },
+  loadingText: {
+    fontFamily: fonts.medium,
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
   },
 });
