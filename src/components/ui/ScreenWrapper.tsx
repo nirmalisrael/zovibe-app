@@ -1,6 +1,6 @@
 import { View, StyleSheet, type ViewProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, layout } from '../../theme';
+import { colors, layout, spacing } from '../../theme';
 
 export function ScreenWrapper({ children, style, ...rest }: ViewProps) {
   return (
@@ -17,6 +17,7 @@ const styles = StyleSheet.create({
   inner: {
     flex: 1,
     paddingHorizontal: layout.screenPadding,
+    paddingTop: spacing[2],
     backgroundColor: colors.bg.primary,
   },
 });
