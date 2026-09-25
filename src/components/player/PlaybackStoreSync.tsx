@@ -34,10 +34,10 @@ export function PlaybackStoreSync() {
   const { playing: uiPlaying } = useIsPlaying();
 
   useEffect(() => {
-    if (uiPlaying !== undefined) {
-      usePlayerStore.getState().setIsPlaying(uiPlaying);
-    } else if (playback.state !== undefined) {
-      usePlayerStore.getState().setIsPlaying(playback.state === State.Playing);
+    const target =
+      uiPlaying !== undefined ? uiPlaying : playback.state === State.Playing;
+    if (usePlayerStore.getState().isPlaying !== target) {
+      usePlayerStore.getState().setIsPlaying(target);
     }
   }, [uiPlaying, playback.state]);
 

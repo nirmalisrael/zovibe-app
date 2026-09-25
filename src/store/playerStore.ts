@@ -24,13 +24,19 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   shuffle: false,
   progress: 0,
   repeat: 'off',
-  setCurrentSong: (song) => set({ currentSong: song }),
+  setCurrentSong: (song) => {
+    if (get().currentSong?.id === song?.id) return;
+    set({ currentSong: song });
+  },
   setQueue: (songs, startIndex = 0) =>
     set({
       queue: songs,
       currentSong: songs[startIndex] ?? null,
     }),
-  setIsPlaying: (v) => set({ isPlaying: v }),
+  setIsPlaying: (v) => {
+    if (get().isPlaying === v) return;
+    set({ isPlaying: v });
+  },
   toggleShuffle: () => set({ shuffle: !get().shuffle }),
   cycleRepeat: () => {
     const order: RepeatMode[] = ['off', 'queue', 'track'];

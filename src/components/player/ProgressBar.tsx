@@ -51,12 +51,19 @@ export function ProgressBar({
     setPendingSeekSec(null);
   }, [duration]);
 
+  const lastHeldRef = useRef<number | null>(null);
   useEffect(() => {
     const cb = onHoldRef.current;
     if (!cb) return;
-    if (sliding) cb(localRatio * duration);
-    else if (pendingSeekSec != null) cb(pendingSeekSec);
-    else cb(null);
+    const nextVal = sliding
+      ? localRatio * duration
+      : pendingSeekSec != null
+      ? pendingSeekSec
+      : null;
+    if (lastHeldRef.current !== nextVal) {
+      lastHeldRef.current = nextVal;
+      cb(nextVal);
+    }
   }, [sliding, localRatio, duration, pendingSeekSec]);
 
   useEffect(() => {

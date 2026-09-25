@@ -22,20 +22,23 @@ export function useNowPlaying(updateInterval = 500) {
     const id = activeTrack?.id;
     if (!id) {
       // Avoid clearing during RNTP hydration: brief undefined activeTrack would flash "Nothing playing".
-      if (usePlayerStore.getState().queue.length === 0) {
+      if (usePlayerStore.getState().queue.length === 0 && usePlayerStore.getState().currentSong !== null) {
         usePlayerStore.getState().setCurrentSong(null);
       }
       return;
     }
-    const song = queue.find((s) => s.id === id);
-    if (song) usePlayerStore.getState().setCurrentSong(song);
+    const currentSong = usePlayerStore.getState().currentSong;
+    if (currentSong?.id !== id) {
+      const song = queue.find((s) => s.id === id);
+      if (song) usePlayerStore.getState().setCurrentSong(song);
+    }
   }, [activeTrack?.id, queue]);
 
   useEffect(() => {
-    if (uiPlaying !== undefined) {
-      usePlayerStore.getState().setIsPlaying(uiPlaying);
-    } else if (playback.state !== undefined) {
-      usePlayerStore.getState().setIsPlaying(playback.state === State.Playing);
+    const target =
+      uiPlaying !== undefined ? uiPlaying : playback.state === State.Playing;
+    if (usePlayerStore.getState().isPlaying !== target) {
+      usePlayerStore.getState().setIsPlaying(target);
     }
   }, [uiPlaying, playback.state]);
 
