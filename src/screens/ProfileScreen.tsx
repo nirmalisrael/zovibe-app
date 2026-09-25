@@ -3,6 +3,7 @@ import {
   useCallback,
   useMemo,
   useRef,
+  useState,
   type ComponentProps,
   type ReactNode,
 } from 'react';
@@ -33,6 +34,8 @@ import type { ProfileStackParamList } from '../navigation/types';
 import { colors, fonts, fontSize, spacing, borderRadius, layout } from '../theme';
 import { navigationRef } from '../navigation/navigationRef';
 import { displayNameOrUsername, resolveUserAvatar } from '../entities';
+import { SleepTimerModal } from '../components/player/SleepTimerModal';
+import { useSleepTimerStore } from '../store/sleepTimerStore';
 
 // ─── Stat Pill ────────────────────────────────────────────────────────────────
 
@@ -232,6 +235,11 @@ export function ProfileScreen() {
   const audioQuality = useSettingsStore((s) => s.audioQuality);
   const setAudioQuality = useSettingsStore((s) => s.setAudioQuality);
 
+  const [sleepTimerVisible, setSleepTimerVisible] = useState(false);
+  const isSleepActive = useSleepTimerStore((s) => s.isActive);
+  const sleepMode = useSleepTimerStore((s) => s.mode);
+  const remainingSeconds = useSleepTimerStore((s) => s.remainingSeconds);
+
   const likedCount = useMemo(
     () => (user ? parseJsonArray<string>(user.likedSongs, []).length : 0),
     [user?.likedSongs],
@@ -419,15 +427,32 @@ export function ProfileScreen() {
             />
           </View>
 
-          {/* <View style={styles.cardDivider} />
+          <View style={styles.cardDivider} />
           <SettingsRow
-            icon="notifications-outline"
-            title="Notifications"
-            subtitle="New releases and recommendations"
-            onPress={() => { }}
-            iconBg="rgba(251, 191, 36, 0.15)"
-            iconColor="#fbbf24"
-          /> */}
+            icon={isSleepActive ? 'moon' : 'moon-outline'}
+            title="Sleep Timer"
+            subtitle={
+              isSleepActive
+                ? `Active · ${
+                    sleepMode === 'end_of_track'
+                      ? 'At end of track'
+                      : remainingSeconds != null
+                      ? `${Math.ceil(remainingSeconds / 60)}m remaining`
+                      : 'Running'
+                  }`
+                : 'Automatically stop music after time'
+            }
+            onPress={() => setSleepTimerVisible(true)}
+            iconBg={isSleepActive ? 'rgba(139, 92, 246, 0.25)' : 'rgba(139, 92, 246, 0.14)'}
+            iconColor={colors.brand.light}
+            right={
+              isSleepActive ? (
+                <View style={styles.sleepActivePill}>
+                  <Text style={styles.sleepActivePillTxt}>Active</Text>
+                </View>
+              ) : undefined
+            }
+          />
         </Card>
 
         {/* ── Account ── */}
@@ -467,6 +492,11 @@ export function ProfileScreen() {
 
         <Text style={styles.versionHint}>ZoVibe · v1.0.0</Text>
       </ScrollView>
+
+      <SleepTimerModal
+        visible={sleepTimerVisible}
+        onClose={() => setSleepTimerVisible(false)}
+      />
     </ScreenWrapper>
   );
 }
@@ -527,6 +557,21 @@ const styles = StyleSheet.create({
       },
       android: { elevation: 4 },
     }),
+  },
+  sleepActivePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: borderRadius.full,
+    backgroundColor: 'rgba(139, 92, 246, 0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.45)',
+  },
+  sleepActivePillTxt: {
+    fontFamily: fonts.bold,
+    fontSize: 10,
+    color: colors.brand.light,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   cardDivider: {
     height: StyleSheet.hairlineWidth,

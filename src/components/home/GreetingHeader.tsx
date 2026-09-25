@@ -1,6 +1,7 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { colors, fonts, fontSize, spacing } from '../../theme';
+import { useSleepTimerStore } from '../../store/sleepTimerStore';
+import { colors, fonts, fontSize, spacing, borderRadius } from '../../theme';
 
 function greetingLine(): string {
   const hour = new Date().getHours();
@@ -59,12 +60,27 @@ function greetingLine(): string {
 export function GreetingHeader({
   onAvatarPress,
   onSearchPress,
+  onSleepTimerPress,
   initials,
 }: Readonly<{
   onAvatarPress: () => void;
   onSearchPress?: () => void;
+  onSleepTimerPress?: () => void;
   initials: string;
 }>) {
+  const isSleepActive = useSleepTimerStore((s) => s.isActive);
+  const remainingSeconds = useSleepTimerStore((s) => s.remainingSeconds);
+  const sleepMode = useSleepTimerStore((s) => s.mode);
+
+  const formattedSleep =
+    sleepMode === 'end_of_track'
+      ? 'Track'
+      : remainingSeconds != null
+      ? remainingSeconds >= 60
+        ? `${Math.ceil(remainingSeconds / 60)}m`
+        : `${remainingSeconds}s`
+      : null;
+
   return (
     <View style={styles.row}>
       <Text accessibilityRole="header" style={styles.wordmark}>
@@ -72,10 +88,38 @@ export function GreetingHeader({
         <Text style={styles.wordRest}>vibe</Text>
       </Text>
       <View style={styles.rightActions}>
+        {onSleepTimerPress ? (
+          <Pressable
+            onPress={onSleepTimerPress}
+            style={({ pressed }) => [
+              styles.actionBtn,
+              isSleepActive && styles.sleepActiveBtn,
+              pressed && styles.actionPressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={
+              isSleepActive
+                ? `Sleep timer active, ${formattedSleep} remaining`
+                : 'Sleep timer'
+            }
+            hitSlop={6}
+          >
+            <Ionicons
+              name={isSleepActive ? 'moon' : 'moon-outline'}
+              size={18}
+              color={isSleepActive ? colors.brand.light : colors.text.secondary}
+            />
+            {isSleepActive && formattedSleep ? (
+              <View style={styles.sleepBadge}>
+                <Text style={styles.sleepBadgeText}>{formattedSleep}</Text>
+              </View>
+            ) : null}
+          </Pressable>
+        ) : null}
         {onSearchPress ? (
           <Pressable
             onPress={onSearchPress}
-            style={({ pressed }) => [styles.searchBtn, pressed && styles.actionPressed]}
+            style={({ pressed }) => [styles.actionBtn, pressed && styles.actionPressed]}
             accessibilityRole="button"
             accessibilityLabel="Search songs"
             hitSlop={6}
@@ -123,7 +167,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing[2],
   },
-  searchBtn: {
+  actionBtn: {
     width: 38,
     height: 38,
     borderRadius: 19,
@@ -132,6 +176,26 @@ const styles = StyleSheet.create({
     borderColor: colors.border.default,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+  },
+  sleepActiveBtn: {
+    backgroundColor: 'rgba(139, 92, 246, 0.22)',
+    borderColor: 'rgba(139, 92, 246, 0.55)',
+  },
+  sleepBadge: {
+    position: 'absolute',
+    bottom: -4,
+    backgroundColor: colors.brand.primary,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderWidth: 1,
+    borderColor: colors.bg.primary,
+  },
+  sleepBadgeText: {
+    fontFamily: fonts.bold,
+    fontSize: 8,
+    color: '#FFF',
   },
   actionPressed: {
     opacity: 0.8,

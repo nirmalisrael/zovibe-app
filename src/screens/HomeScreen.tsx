@@ -20,6 +20,7 @@ import { ScreenErrorBoundary } from '../components/ui/ScreenErrorBoundary';
 import { HomeFeedSkeleton } from '../components/ui/PageSkeletons';
 import { ErrorState } from '../components/ui/ErrorState';
 import { GreetingHeader, greetingLine } from '../components/home/GreetingHeader';
+import { SleepTimerModal } from '../components/player/SleepTimerModal';
 import { MoodPillRow } from '../components/home/MoodPillRow';
 import { SectionCarousel } from '../components/home/SectionCarousel';
 import { AlbumCard } from '../components/cards/AlbumCard';
@@ -126,6 +127,7 @@ export function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [sleepTimerVisible, setSleepTimerVisible] = useState(false);
   const searchInputRef = useRef<TextInput | null>(null);
 
   useEffect(() => {
@@ -186,6 +188,7 @@ export function HomeScreen() {
             initials={initials}
             onAvatarPress={onAvatarPress}
             onSearchPress={() => searchInputRef.current?.focus()}
+            onSleepTimerPress={() => setSleepTimerVisible(true)}
           />
 
           <View style={styles.greetContainer}>
@@ -466,6 +469,11 @@ export function HomeScreen() {
             </SectionCarousel>
           ) : null}
         </ScrollView>
+
+        <SleepTimerModal
+          visible={sleepTimerVisible}
+          onClose={() => setSleepTimerVisible(false)}
+        />
       </ScreenWrapper>
     </ScreenErrorBoundary>
   );
