@@ -47,6 +47,8 @@ import { LanguageBadge } from '../components/ui/LanguageBadge';
 import { SongRow } from '../components/cards/SongRow';
 import { ProgressBar } from '../components/player/ProgressBar';
 import { PlayerControls } from '../components/player/PlayerControls';
+import { SleepTimerModal } from '../components/player/SleepTimerModal';
+import { useSleepTimerStore } from '../store/sleepTimerStore';
 import { useAddToPlaylist } from '../context/AddToPlaylistContext';
 import { formatTime } from '../utils/formatTime';
 import { getAlbumNameSafe, getPrimaryArtistNames } from '../utils/songHelpers';
@@ -516,13 +518,29 @@ const TopBar = memo(function TopBar({
   queueLabel,
   onClose,
   onQueue,
+  onSleepTimer,
 }: Readonly<{
   queueLabel: string | null;
   onClose: () => void;
   onQueue: () => void;
+  onSleepTimer: () => void;
 }>) {
   const closeScale = useRef(new Animated.Value(1)).current;
   const queueScale = useRef(new Animated.Value(1)).current;
+  const sleepScale = useRef(new Animated.Value(1)).current;
+
+  const isSleepActive = useSleepTimerStore((s) => s.isActive);
+  const remainingSeconds = useSleepTimerStore((s) => s.remainingSeconds);
+  const sleepMode = useSleepTimerStore((s) => s.mode);
+
+  const formattedSleep =
+    sleepMode === 'end_of_track'
+      ? 'Track'
+      : remainingSeconds != null
+      ? remainingSeconds >= 60
+        ? `${Math.ceil(remainingSeconds / 60)}m`
+        : `${remainingSeconds}s`
+      : null;
 
   const onClosePressIn = useCallback(
     () => Animated.spring(closeScale, { toValue: 0.88, ...SPRING_SNAP }).start(),
@@ -539,6 +557,14 @@ const TopBar = memo(function TopBar({
   const onQueuePressOut = useCallback(
     () => Animated.spring(queueScale, { toValue: 1, ...SPRING_SNAP }).start(),
     [queueScale]
+  );
+  const onSleepPressIn = useCallback(
+    () => Animated.spring(sleepScale, { toValue: 0.88, ...SPRING_SNAP }).start(),
+    [sleepScale]
+  );
+  const onSleepPressOut = useCallback(
+    () => Animated.spring(sleepScale, { toValue: 1, ...SPRING_SNAP }).start(),
+    [sleepScale]
   );
 
   return (
@@ -565,19 +591,49 @@ const TopBar = memo(function TopBar({
         <Text style={styles.nowPlayingLabel} numberOfLines={1}>Now playing</Text>
       </View>
 
-      {/* Queue */}
-      <Pressable
-        onPress={onQueue}
-        onPressIn={onQueuePressIn}
-        onPressOut={onQueuePressOut}
-        hitSlop={14}
-        accessibilityRole="button"
-        accessibilityLabel="Open queue"
-      >
-        <Animated.View style={[styles.closeBtn, { transform: [{ scale: queueScale }] }]}>
-          <Ionicons name="list" size={20} color={colors.text.primary} />
-        </Animated.View>
-      </Pressable>
+      {/* Right actions: Sleep timer + Queue */}
+      <View style={styles.topRightActions}>
+        <Pressable
+          onPress={onSleepTimer}
+          onPressIn={onSleepPressIn}
+          onPressOut={onSleepPressOut}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel={isSleepActive ? `Sleep timer active, ${formattedSleep} remaining` : 'Set sleep timer'}
+        >
+          <Animated.View
+            style={[
+              styles.closeBtn,
+              isSleepActive && styles.sleepActiveBtn,
+              { transform: [{ scale: sleepScale }] },
+            ]}
+          >
+            <Ionicons
+              name={isSleepActive ? 'moon' : 'moon-outline'}
+              size={18}
+              color={isSleepActive ? colors.brand.light : colors.text.primary}
+            />
+            {isSleepActive && formattedSleep ? (
+              <View style={styles.sleepBadge}>
+                <Text style={styles.sleepBadgeText}>{formattedSleep}</Text>
+              </View>
+            ) : null}
+          </Animated.View>
+        </Pressable>
+
+        <Pressable
+          onPress={onQueue}
+          onPressIn={onQueuePressIn}
+          onPressOut={onQueuePressOut}
+          hitSlop={14}
+          accessibilityRole="button"
+          accessibilityLabel="Open queue"
+        >
+          <Animated.View style={[styles.closeBtn, { transform: [{ scale: queueScale }] }]}>
+            <Ionicons name="list" size={19} color={colors.text.primary} />
+          </Animated.View>
+        </Pressable>
+      </View>
     </View>
   );
 });
@@ -891,6 +947,7 @@ export function NowPlayingScreen() {
   const { openAddToPlaylist } = useAddToPlaylist();
 
   const [queueVisible, setQueueVisible] = useState(false);
+  const [sleepTimerVisible, setSleepTimerVisible] = useState(false);
 
   const current = useMemo(() => {
     if (storeCurrent) return storeCurrent;
@@ -1081,6 +1138,7 @@ export function NowPlayingScreen() {
                     queueLabel={queueLabel}
                     onClose={goBack}
                     onQueue={() => setQueueVisible(true)}
+                    onSleepTimer={() => setSleepTimerVisible(true)}
                   />
                 </View>
               </GestureDetector>
@@ -1175,6 +1233,12 @@ export function NowPlayingScreen() {
         toggleLike={toggleLike}
         openAddToPlaylist={openAddToPlaylist}
       />
+
+      {/* ── Sleep Timer sheet ── */}
+      <SleepTimerModal
+        visible={sleepTimerVisible}
+        onClose={() => setSleepTimerVisible(false)}
+      />
     </View>
   );
 }
@@ -1224,6 +1288,30 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     paddingHorizontal: spacing[2],
+  },
+  topRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  sleepActiveBtn: {
+    backgroundColor: 'rgba(139, 92, 246, 0.22)',
+    borderColor: 'rgba(139, 92, 246, 0.55)',
+  },
+  sleepBadge: {
+    position: 'absolute',
+    bottom: -4,
+    backgroundColor: colors.brand.primary,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderWidth: 1,
+    borderColor: colors.bg.primary,
+  },
+  sleepBadgeText: {
+    fontFamily: fonts.bold,
+    fontSize: 8,
+    color: '#FFF',
   },
   kicker: {
     fontFamily: fonts.bold,
