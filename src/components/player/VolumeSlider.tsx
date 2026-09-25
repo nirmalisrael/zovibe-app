@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 import Slider from '@react-native-community/slider';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { colors, fonts, fontSize, spacing } from '../../theme';
 
 type VolumeSliderProps = Readonly<{

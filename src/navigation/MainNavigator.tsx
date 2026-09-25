@@ -5,7 +5,7 @@ import {
   type BottomTabBarProps,
 } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { HomeStack } from './HomeStack';
 import { ExploreStack } from './ExploreStack';
 import { LibraryStackNav } from './LibraryStack';

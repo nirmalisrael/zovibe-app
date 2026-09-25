@@ -1,6 +1,6 @@
 import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import type { ReactNode } from 'react';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { memo } from 'react';
 import { colors, spacing, borderRadius } from '../../theme';
 import type { RepeatMode } from '../../store/playerStore';

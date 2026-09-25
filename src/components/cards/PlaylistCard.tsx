@@ -6,7 +6,7 @@ import Animated, {
   withTiming,
   interpolate,
 } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import type { MockAPIPlaylistRow } from '../../api/mockapi';
 import { parseJsonArray } from '../../api/mockapi';
 import { colors, fonts, fontSize, spacing, borderRadius } from '../../theme';

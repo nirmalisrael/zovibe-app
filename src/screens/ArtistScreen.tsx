@@ -2,7 +2,7 @@ import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { getArtistById, getArtistSongs, getArtistAlbums } from '../api/jiosaavn';
 import { ScreenWrapper } from '../components/ui/ScreenWrapper';
 import { ScreenErrorBoundary } from '../components/ui/ScreenErrorBoundary';

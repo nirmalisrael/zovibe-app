@@ -1,4 +1,4 @@
-/** Load these with useFonts from @expo-google-fonts/space-grotesk in App.tsx */
+/** Native SpaceGrotesk font family loaded via assets/fonts/ */
 export const fonts = {
   light: 'SpaceGrotesk_300Light',
   regular: 'SpaceGrotesk_400Regular',

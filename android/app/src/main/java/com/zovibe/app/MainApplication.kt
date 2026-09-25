@@ -10,14 +10,12 @@ import com.facebook.react.ReactPackage
 import com.facebook.react.ReactHost
 import com.facebook.react.common.ReleaseLevel
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint
-
-import expo.modules.ApplicationLifecycleDispatcher
-import expo.modules.ExpoReactHostFactory
+import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 
 class MainApplication : Application(), ReactApplication {
 
   override val reactHost: ReactHost by lazy {
-    ExpoReactHostFactory.getDefaultReactHost(
+    getDefaultReactHost(
       context = applicationContext,
       packageList =
         PackageList(this).packages.apply {
@@ -35,11 +33,5 @@ class MainApplication : Application(), ReactApplication {
       ReleaseLevel.STABLE
     }
     loadReactNative(this)
-    ApplicationLifecycleDispatcher.onApplicationCreate(this)
-  }
-
-  override fun onConfigurationChanged(newConfig: Configuration) {
-    super.onConfigurationChanged(newConfig)
-    ApplicationLifecycleDispatcher.onConfigurationChanged(this, newConfig)
   }
 }

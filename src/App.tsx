@@ -1,17 +1,9 @@
 import { useEffect, useState } from 'react';
-import { StatusBar } from 'expo-status-bar';
+import { StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import * as SplashScreen from 'expo-splash-screen';
-import {
-  useFonts,
-  SpaceGrotesk_300Light,
-  SpaceGrotesk_400Regular,
-  SpaceGrotesk_500Medium,
-  SpaceGrotesk_700Bold,
-} from '@expo-google-fonts/space-grotesk';
 import TrackPlayer, { AppKilledPlaybackBehavior, Capability } from 'react-native-track-player';
 import { RootNavigator } from './navigation/RootNavigator';
 import { navigationRef } from './navigation/navigationRef';
@@ -19,8 +11,6 @@ import { PlaybackStoreSync } from './components/player/PlaybackStoreSync';
 import { PlaybackRemoteControls } from './components/player/PlaybackRemoteControls';
 import { AddToPlaylistProvider } from './context/AddToPlaylistContext';
 import { colors } from './theme';
-
-SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -69,12 +59,6 @@ async function setupPlayer() {
 
 export default function App() {
   const [playerSetup, setPlayerSetup] = useState(false);
-  const [fontsLoaded] = useFonts({
-    SpaceGrotesk_300Light,
-    SpaceGrotesk_400Regular,
-    SpaceGrotesk_500Medium,
-    SpaceGrotesk_700Bold,
-  });
 
   useEffect(() => {
     setupPlayer()
@@ -82,13 +66,7 @@ export default function App() {
       .catch(() => setPlayerSetup(true));
   }, []);
 
-  useEffect(() => {
-    if (fontsLoaded && playerSetup) {
-      SplashScreen.hideAsync().catch(() => undefined);
-    }
-  }, [fontsLoaded, playerSetup]);
-
-  if (!fontsLoaded || !playerSetup) {
+  if (!playerSetup) {
     return null;
   }
 
@@ -98,7 +76,7 @@ export default function App() {
         <QueryClientProvider client={queryClient}>
           <AddToPlaylistProvider>
             <NavigationContainer ref={navigationRef} theme={navTheme}>
-              <StatusBar style="light" />
+              <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
               <PlaybackStoreSync />
               <PlaybackRemoteControls />
               <RootNavigator />

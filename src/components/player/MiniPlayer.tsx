@@ -8,8 +8,8 @@ import {
   PanResponder,
   type DimensionValue,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from '../ui/BlurView';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useRef } from 'react';
 import type { PropsWithChildren } from 'react';
 import { useProgress } from 'react-native-track-player';

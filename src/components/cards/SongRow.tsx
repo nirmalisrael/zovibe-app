@@ -1,5 +1,5 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import type { JioSaavnSong } from '../../api/jiosaavn';
 import { CoverImage } from '../ui/CoverImage';
 import { PlayingWaveIndicator } from '../ui/PlayingWaveIndicator';

@@ -3,7 +3,7 @@ import { View, Text, Pressable, StyleSheet, ScrollView, RefreshControl } from 'r
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { MOODS, type MoodType } from '../constants/moods';
 import { getLanguageQuerySuffix } from '../constants/languages';
 import { searchAll } from '../api/jiosaavn';
