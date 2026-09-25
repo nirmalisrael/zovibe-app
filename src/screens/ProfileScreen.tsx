@@ -106,34 +106,34 @@ const SettingsRow = memo(function SettingsRow({
   iconColor?: string;
 }>) {
   const scale = useRef(new Animated.Value(1)).current;
-  const bg = useRef(new Animated.Value(0)).current;
 
   const onPressIn = useCallback(() => {
-    Animated.parallel([
-      Animated.spring(scale, { toValue: 0.985, useNativeDriver: true, speed: 40 }),
-      Animated.timing(bg, { toValue: 1, duration: 100, useNativeDriver: false }),
-    ]).start();
-  }, [scale, bg]);
+    Animated.spring(scale, {
+      toValue: 0.985,
+      useNativeDriver: true,
+      speed: 40,
+    }).start();
+  }, [scale]);
 
   const onPressOut = useCallback(() => {
-    Animated.parallel([
-      Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 25, bounciness: 4 }),
-      Animated.timing(bg, { toValue: 0, duration: 200, useNativeDriver: false }),
-    ]).start();
-  }, [scale, bg]);
-
-  const animatedBg = bg.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['rgba(139, 92, 246, 0.0)', 'rgba(139, 92, 246, 0.08)'],
-  });
+    Animated.spring(scale, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 25,
+      bounciness: 4,
+    }).start();
+  }, [scale]);
 
   return (
-    <Animated.View style={{ transform: [{ scale }], backgroundColor: animatedBg }}>
+    <Animated.View style={{ transform: [{ scale }] }}>
       <Pressable
         onPress={onPress}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
-        style={styles.settingsRow}
+        style={({ pressed }) => [
+          styles.settingsRow,
+          pressed && styles.settingsRowPressed,
+        ]}
         accessibilityRole="button"
         accessibilityLabel={title}
       >
@@ -689,6 +689,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[4],
     paddingHorizontal: spacing[4],
     gap: spacing[3],
+  },
+  settingsRowPressed: {
+    backgroundColor: 'rgba(139, 92, 246, 0.08)',
   },
   settingsRowIcon: {
     width: 40,
