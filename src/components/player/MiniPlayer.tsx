@@ -144,7 +144,7 @@ export function MiniPlayer({ onExpand, onSwipeDismiss }: MiniPlayerProps) {
 
           <View style={styles.controls}>
             <CtrlBtn onPress={skipToPrevious} label="Previous track">
-              <Ionicons name="play-skip-back" size={18} color="rgba(220,210,255,0.65)" />
+              <Ionicons name="play-skip-back" size={18} color={colors.text.secondary} />
             </CtrlBtn>
 
             <Pressable
@@ -192,21 +192,21 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 0,
     borderWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: 0,
-    borderColor: 'rgba(180, 160, 255, 0.2)',
+    borderColor: colors.border.default,
     ...Platform.select({
       ios: {
-        shadowColor: '#050214',
+        shadowColor: '#000000',
         shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.35,
+        shadowOpacity: 0.45,
         shadowRadius: 12,
       },
-      android: { elevation: 6 },
+      android: { elevation: 8 },
     }),
   },
 
   overlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(10, 5, 28, 0.74)',
+    backgroundColor: colors.player.bg,
   },
 
   inner: {
@@ -215,16 +215,16 @@ const styles = StyleSheet.create({
 
   progressTrack: {
     height: 3,
-    backgroundColor: 'rgba(124, 58, 237, 0.2)',
+    backgroundColor: colors.player.progressTrack,
     width: '100%',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: colors.brand.light,
+    backgroundColor: colors.player.progressActive,
     borderRadius: 1.5,
-    shadowColor: colors.brand.light,
+    shadowColor: colors.brand.primary,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.45,
+    shadowOpacity: 0.5,
     shadowRadius: 3,
   },
 
@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
   sub: {
     fontFamily: fonts.regular,
     fontSize: fontSize.xs,
-    color: 'rgba(200, 185, 255, 0.42)',
+    color: colors.text.secondary,
   },
 
   controls: {
@@ -306,9 +306,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(124, 58, 237, 0.42)',
+    backgroundColor: colors.brand.primary,
     borderWidth: 0.5,
-    borderColor: 'rgba(167, 139, 250, 0.35)',
+    borderColor: 'rgba(167, 139, 250, 0.45)',
     ...Platform.select({
       ios: {
         shadowColor: colors.brand.primary,

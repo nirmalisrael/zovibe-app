@@ -19,13 +19,13 @@ const SHIMMER_BAND = 96;
 const SHIMMER_DURATION_MS = 1650;
 
 const skeleton = {
-  /** Slightly lifted from flat bg so blocks read as “material” */
-  base: '#221A42',
-  baseMuted: '#1A1530',
-  rim: 'rgba(199, 181, 253, 0.08)',
-  /** Peak highlight — brand pale, controlled opacity */
-  glow: 'rgba(237, 233, 254, 0.22)',
-  glowMid: 'rgba(196, 181, 253, 0.14)',
+  /** Raised surface for skeletons on Midnight Black */
+  base: '#1C1C23',
+  baseMuted: '#141419',
+  rim: 'rgba(255, 255, 255, 0.04)',
+  /** Peak highlight — subtle Electric Violet shimmer */
+  glow: 'rgba(139, 92, 246, 0.16)',
+  glowMid: 'rgba(139, 92, 246, 0.08)',
 } as const;
 
 const SHIMMER_GRADIENT = [

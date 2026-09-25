@@ -52,16 +52,16 @@ import { colors, fonts, fontSize, spacing, borderRadius, layout } from '../theme
 
 type MainNav = NativeStackNavigationProp<MainAppStackParamList>;
 
-/** Matches Profile card shell + PlayerControls active wells (purple glass on dark). */
+/** Matches Profile card shell + PlayerControls active wells (obsidian glass on Midnight Black). */
 const NP = {
-  cardFill: 'rgba(22, 13, 46, 0.72)',
-  border: 'rgba(124, 58, 237, 0.18)',
-  borderGlow: 'rgba(167, 139, 250, 0.28)',
-  well: 'rgba(124, 58, 237, 0.12)',
-  activeWell: 'rgba(124, 58, 237, 0.14)',
-  rowLine: 'rgba(124, 58, 237, 0.12)',
-  vignette: 'rgba(13, 13, 26, 0.58)',
-  sheen: 'rgba(237, 233, 254, 0.06)',
+  cardFill: 'rgba(28, 28, 35, 0.75)',
+  border: 'rgba(41, 41, 50, 0.65)',
+  borderGlow: 'rgba(139, 92, 246, 0.28)',
+  well: 'rgba(28, 28, 35, 0.6)',
+  activeWell: 'rgba(139, 92, 246, 0.16)',
+  rowLine: 'rgba(41, 41, 50, 0.5)',
+  vignette: 'rgba(11, 11, 15, 0.65)',
+  sheen: 'rgba(248, 248, 250, 0.04)',
 } as const;
 
 // ─── Spring configs ────────────────────────────────────────────────────────────
@@ -1157,7 +1157,7 @@ const styles = StyleSheet.create({
   // ── Bottom sheet shell ──
   sheetBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(13, 13, 26, 0.72)',
+    backgroundColor: 'rgba(11, 11, 15, 0.75)',
   },
   sheet: {
     backgroundColor: colors.bg.secondary,

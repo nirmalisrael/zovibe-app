@@ -62,13 +62,13 @@ export function MainNavigator() {
         },
         tabBarStyle: {
           backgroundColor: colors.bg.surface,
-          borderTopColor: colors.border.subtle,
-          borderTopWidth: 1,
+          borderTopColor: colors.border.default,
+          borderTopWidth: StyleSheet.hairlineWidth,
           height: layout.tabBarHeight,
           paddingBottom: 16,
         },
-        tabBarActiveTintColor: colors.brand.light,
-        tabBarInactiveTintColor: '#3D3060',
+        tabBarActiveTintColor: colors.brand.primary,
+        tabBarInactiveTintColor: colors.text.muted,
         sceneStyle: { backgroundColor: colors.bg.primary },
       }}
     >

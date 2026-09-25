@@ -115,7 +115,7 @@ export function RegisterScreen() {
       <ScreenWrapper style={styles.screenNoPad}>
         <View style={styles.bgAccent} pointerEvents="none">
           <LinearGradient
-            colors={['rgba(124, 58, 237, 0.35)', 'transparent']}
+            colors={['rgba(139, 92, 246, 0.28)', 'transparent']}
             style={styles.blobTop}
             start={{ x: 0.5, y: 0 }}
             end={{ x: 1, y: 0.6 }}

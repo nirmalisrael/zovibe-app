@@ -229,20 +229,20 @@ const styles = StyleSheet.create({
     width: '100%',
     height: TRACK_HEIGHT,
     borderRadius: TRACK_HEIGHT / 2,
-    backgroundColor: 'rgba(124, 58, 237, 0.18)',
+    backgroundColor: colors.player.progressTrack,
     overflow: 'visible',
   },
   fill: {
     height: '100%',
     borderRadius: TRACK_HEIGHT / 2,
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.player.progressActive,
     overflow: 'visible',
     ...Platform.select({
       ios: {
-        shadowColor: colors.brand.light,
+        shadowColor: colors.brand.primary,
         shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.35,
-        shadowRadius: 3,
+        shadowOpacity: 0.45,
+        shadowRadius: 4,
       },
       android: { elevation: 0 },
     }),
@@ -260,9 +260,9 @@ const styles = StyleSheet.create({
     width: THUMB_SIZE,
     height: THUMB_SIZE,
     borderRadius: THUMB_SIZE / 2,
-    backgroundColor: colors.brand.pale,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(167, 139, 250, 0.55)',
+    backgroundColor: colors.text.primary,
+    borderWidth: 2,
+    borderColor: colors.brand.primary,
     ...Platform.select({
       ios: {
         shadowColor: '#000',

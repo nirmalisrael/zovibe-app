@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
   },
 
   pressedGlow: {
-    backgroundColor: 'rgba(124, 58, 237, 0.22)',
+    backgroundColor: 'rgba(139, 92, 246, 0.22)',
   },
 
   iconBtn: {
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   iconBtnActive: {
-    backgroundColor: 'rgba(124, 58, 237, 0.14)',
+    backgroundColor: 'rgba(139, 92, 246, 0.14)',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(167, 139, 250, 0.28)',
   },
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     }),
   },
   playPressed: {
-    backgroundColor: '#6D28D9',
+    backgroundColor: colors.brand.dark,
     borderColor: 'rgba(237, 233, 254, 0.45)',
     ...Platform.select({
       ios: {

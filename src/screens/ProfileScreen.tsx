@@ -94,7 +94,7 @@ const SettingsRow = memo(function SettingsRow({
   subtitle,
   onPress,
   right,
-  iconBg = 'rgba(124, 58, 237, 0.15)',
+  iconBg = 'rgba(139, 92, 246, 0.14)',
   iconColor = colors.brand.light,
 }: Readonly<{
   icon: ComponentProps<typeof Ionicons>['name'];
@@ -124,7 +124,7 @@ const SettingsRow = memo(function SettingsRow({
 
   const animatedBg = bg.interpolate({
     inputRange: [0, 1],
-    outputRange: ['rgba(124, 58, 237, 0.0)', 'rgba(124, 58, 237, 0.09)'],
+    outputRange: ['rgba(139, 92, 246, 0.0)', 'rgba(139, 92, 246, 0.08)'],
   });
 
   return (
@@ -191,7 +191,7 @@ const GuestView = memo(function GuestView({ onPress }: { onPress: () => void }) 
 
       <Card style={styles.guestCard}>
         <LinearGradient
-          colors={['rgba(124,58,237,0.18)', 'rgba(124,58,237,0.04)']}
+          colors={['rgba(139, 92, 246, 0.16)', 'rgba(139, 92, 246, 0.03)']}
           style={styles.guestGradient}
         />
         <View style={styles.guestIconRing}>
@@ -208,7 +208,7 @@ const GuestView = memo(function GuestView({ onPress }: { onPress: () => void }) 
           accessibilityLabel="Go to sign in"
         >
           <LinearGradient
-            colors={[colors.brand.primary, '#9333ea']}
+            colors={[colors.brand.primary, colors.brand.dark]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.primaryBtnGradient}
@@ -339,7 +339,7 @@ export function ProfileScreen() {
         <Card style={styles.profileCard}>
           {/* Decorative gradient backdrop */}
           <LinearGradient
-            colors={['rgba(124,58,237,0.22)', 'rgba(124,58,237,0.0)']}
+            colors={['rgba(139, 92, 246, 0.18)', 'transparent']}
             style={StyleSheet.absoluteFill}
             start={{ x: 0.5, y: 0 }}
             end={{ x: 0.5, y: 1 }}
@@ -347,7 +347,7 @@ export function ProfileScreen() {
           />
           <View style={styles.avatarRing}>
             <LinearGradient
-              colors={[colors.brand.primary, '#a855f7', '#6366f1']}
+              colors={[colors.brand.primary, colors.brand.light, colors.brand.dark]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.avatarGradientBorder}
@@ -398,7 +398,7 @@ export function ProfileScreen() {
 
           {/* Audio quality row — inline, not a Pressable */}
           <View style={styles.audioBlock}>
-            <View style={[styles.settingsRowIcon, { backgroundColor: 'rgba(124, 58, 237, 0.15)' }]}>
+            <View style={[styles.settingsRowIcon, { backgroundColor: 'rgba(139, 92, 246, 0.14)' }]}>
               <Ionicons name="musical-notes-outline" size={20} color={colors.brand.light} />
             </View>
             <View style={styles.settingsRowText}>
@@ -513,9 +513,9 @@ const styles = StyleSheet.create({
   // ── Card shell ──
   card: {
     borderRadius: borderRadius.lg + 2,
-    backgroundColor: 'rgba(22, 13, 46, 0.7)',
+    backgroundColor: colors.bg.surface,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(124, 58, 237, 0.18)',
+    borderColor: colors.border.default,
     overflow: 'hidden',
     marginBottom: spacing[6],
     ...Platform.select({
@@ -530,7 +530,7 @@ const styles = StyleSheet.create({
   },
   cardDivider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(124, 58, 237, 0.12)',
+    backgroundColor: colors.border.default,
     marginLeft: 60,
     marginRight: spacing[3],
   },
@@ -637,9 +637,9 @@ const styles = StyleSheet.create({
   statPill: {
     flex: 1,
     borderRadius: borderRadius.lg,
-    backgroundColor: 'rgba(22, 13, 46, 0.7)',
+    backgroundColor: colors.bg.surface,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(124, 58, 237, 0.18)',
+    borderColor: colors.border.default,
     overflow: 'hidden',
     ...Platform.select({
       ios: {
@@ -778,9 +778,9 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: 'rgba(124, 58, 237, 0.15)',
+    backgroundColor: 'rgba(139, 92, 246, 0.14)',
     borderWidth: 1.5,
-    borderColor: 'rgba(167, 139, 250, 0.3)',
+    borderColor: 'rgba(167, 139, 250, 0.35)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing[5],

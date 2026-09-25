@@ -40,13 +40,13 @@ const SPLASH_HOLD_MS = 2500;
 
 /** Splash-only: separates purple logo from background */
 const splash = {
-  /** Cooler dark so violet logo doesn’t melt into the wash */
+  /** Midnight Black primary background */
   bg: colors.bg.primary,
-  /** Slightly warmer/lighter disc than bg so the ring reads as a layer */
-  logoPlate: '#16122A',
-  /** Soft halo (not same solid as logo #7C3AED) */
-  glowFill: 'rgba(167, 139, 250, 0.18)',
-  glowBorder: 'rgba(199, 181, 253, 0.55)',
+  /** Raised surface disc for subtle depth */
+  logoPlate: colors.bg.tertiary,
+  /** Soft Electric Violet halo */
+  glowFill: 'rgba(139, 92, 246, 0.20)',
+  glowBorder: 'rgba(167, 139, 250, 0.45)',
 } as const;
 
 type SplashScreenProps = {
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     fontSize: 13,
     letterSpacing: 2.2,
-    color: colors.accent.cyan,
+    color: colors.text.secondary,
     textTransform: 'lowercase',
     opacity: 0.9,
   },
