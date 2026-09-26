@@ -309,6 +309,31 @@ export async function getPlaylistById(id: string): Promise<JioSaavnPlaylist | nu
   return null;
 }
 
+export async function getSongSuggestions(
+  songId: string,
+  limit = 10,
+  currentSong?: JioSaavnSong | null
+): Promise<JioSaavnSong[]> {
+  try {
+    const json = await fetchJson<unknown>(`/api/songs/${encodeURIComponent(songId)}/suggestions`, { limit });
+    const list = asSongArray(json);
+    if (list.length > 0) return list;
+  } catch {
+    /* fallback below */
+  }
+
+  if (currentSong?.artists?.primary?.[0]?.name) {
+    try {
+      const artistSongs = await searchSongs(currentSong.artists.primary[0].name, 0, limit);
+      const filtered = artistSongs.filter((s) => s.id !== songId);
+      if (filtered.length > 0) return filtered;
+    } catch {
+      /* ignore */
+    }
+  }
+  return [];
+}
+
 export async function getLyrics(songId: string): Promise<string> {
   const json = await fetchJson<unknown>(`/api/songs/${encodeURIComponent(songId)}/lyrics`);
   if (json && typeof json === 'object') {
@@ -324,3 +349,4 @@ export async function getLyrics(songId: string): Promise<string> {
   }
   return '';
 }
+

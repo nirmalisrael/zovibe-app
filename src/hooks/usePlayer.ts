@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import TrackPlayer, { RepeatMode as RNTPRepeat, State, isPlaying as getIsPlayingUi } from 'react-native-track-player';
 import type { JioSaavnSong } from '../api/jiosaavn';
-import { getSongById } from '../api/jiosaavn';
+import { getSongById, getSongSuggestions } from '../api/jiosaavn';
 import { buildTrack } from '../utils/buildTrack';
 import { usePlayerStore, type RepeatMode } from '../store/playerStore';
 import { useSettingsStore } from '../store/settingsStore';
@@ -48,6 +48,30 @@ export function usePlayer() {
       usePlayerStore.getState().setIsPlaying(true);
     },
     [audioQuality]
+  );
+
+  /** Plays a single song immediately and populates queue with matching tone/vibe suggestions (YouTube-style radio). */
+  const playWithVibe = useCallback(
+    async (song: JioSaavnSong) => {
+      await playQueue([song], 0);
+
+      try {
+        const suggestions = await getSongSuggestions(song.id, 15, song);
+        if (suggestions.length > 0) {
+          const currentQ = usePlayerStore.getState().queue;
+          const existingIds = new Set(currentQ.map((s) => s.id));
+          const filtered = suggestions.filter((s) => !existingIds.has(s.id));
+          if (filtered.length > 0) {
+            const tracks = filtered.map((s) => buildTrack(s, audioQuality));
+            await TrackPlayer.add(tracks);
+            usePlayerStore.getState().appendToQueue(filtered);
+          }
+        }
+      } catch {
+        /* ignore error */
+      }
+    },
+    [playQueue, audioQuality]
   );
 
   const togglePlay = useCallback(async () => {
@@ -127,6 +151,7 @@ export function usePlayer() {
 
   return {
     playQueue,
+    playWithVibe,
     togglePlay,
     pause,
     play,

@@ -42,7 +42,7 @@ const GENRES: {
 export function ExploreScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<ExploreStackParamList>>();
   const { raw, setRaw, debounced, data, isPending, isFetching } = useSearch(300);
-  const { playQueue } = usePlayer();
+  const { playQueue, playWithVibe } = usePlayer();
   const user = useAuthStore((s) => s.user);
   const langPrefs = useAuthStore((s) => s.langPrefs);
   const homeLanguageFilter = useSettingsStore((s) => s.homeLanguageFilter);
@@ -122,12 +122,12 @@ export function ExploreScreen() {
                 {songResults.length > 0 ? (
                   <>
                     <Text style={styles.h}>Songs</Text>
-                    {songResults.map((s, index) => (
+                    {songResults.map((s) => (
                       <SongRow
                         key={s.id}
                         song={s}
                         onPress={() => {
-                          void playQueue(songResults, index);
+                          void playWithVibe(s);
                         }}
                         liked={isLiked(s.id)}
                         onToggleLike={() => {

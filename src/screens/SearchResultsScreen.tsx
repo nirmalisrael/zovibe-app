@@ -20,7 +20,7 @@ export function SearchResultsScreen() {
   const route = useRoute();
   const navigation = useNavigation<NativeStackNavigationProp<Record<string, object | undefined>>>();
   const { query, title } = route.params as { query: string; title?: string };
-  const { playQueue } = usePlayer();
+  const { playQueue, playWithVibe } = usePlayer();
   const user = useAuthStore((s) => s.user);
   const { isLiked, toggleLike } = useLikedSongs();
   const { openAddToPlaylist } = useAddToPlaylist();
@@ -64,11 +64,11 @@ export function SearchResultsScreen() {
             {songs.length > 0 ? (
               <>
                 <Text style={styles.sec}>Songs</Text>
-                {songs.map((s, index) => (
+                {songs.map((s) => (
                   <SongRow
                     key={s.id}
                     song={s}
-                    onPress={() => void playQueue(songs, index)}
+                    onPress={() => void playWithVibe(s)}
                     liked={isLiked(s.id)}
                     onToggleLike={() => user && void toggleLike(s.id, isLiked(s.id))}
                     showLike={!!user}

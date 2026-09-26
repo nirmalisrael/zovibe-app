@@ -50,6 +50,7 @@ import { SongRow } from '../components/cards/SongRow';
 import { ProgressBar } from '../components/player/ProgressBar';
 import { PlayerControls } from '../components/player/PlayerControls';
 import { SleepTimerModal } from '../components/player/SleepTimerModal';
+import { LyricsModal } from '../components/player/LyricsModal';
 import { useSleepTimerStore } from '../store/sleepTimerStore';
 import { useAddToPlaylist } from '../context/AddToPlaylistContext';
 import { formatTime } from '../utils/formatTime';
@@ -959,6 +960,7 @@ export function NowPlayingScreen() {
 
   const [queueVisible, setQueueVisible] = useState(false);
   const [sleepTimerVisible, setSleepTimerVisible] = useState(false);
+  const [lyricsModalVisible, setLyricsModalVisible] = useState(false);
 
   const current = useMemo(() => {
     if (storeCurrent) return storeCurrent;
@@ -1247,20 +1249,30 @@ export function NowPlayingScreen() {
                       </Text>
                     </Pressable>
 
-                    {current.hasLyrics ? (
-                      <Pressable
-                        onPress={goToLyrics}
-                        style={({ pressed }) => [
-                          styles.utilityChip,
-                          pressed && styles.utilityChipPressed,
+                    <Pressable
+                      onPress={() => setLyricsModalVisible(true)}
+                      style={({ pressed }) => [
+                        styles.utilityChip,
+                        lyricsModalVisible && styles.utilityChipActive,
+                        pressed && styles.utilityChipPressed,
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel="Open lyrics modal"
+                    >
+                      <Ionicons
+                        name="text-outline"
+                        size={16}
+                        color={lyricsModalVisible ? colors.brand.light : colors.text.secondary}
+                      />
+                      <Text
+                        style={[
+                          styles.utilityChipText,
+                          lyricsModalVisible && styles.utilityChipTextActive,
                         ]}
-                        accessibilityRole="button"
-                        accessibilityLabel="Open lyrics"
                       >
-                        <Ionicons name="text-outline" size={16} color={colors.text.secondary} />
-                        <Text style={styles.utilityChipText}>Lyrics</Text>
-                      </Pressable>
-                    ) : null}
+                        Lyrics
+                      </Text>
+                    </Pressable>
 
                     <Pressable
                       onPress={() => setQueueVisible(true)}
@@ -1302,6 +1314,13 @@ export function NowPlayingScreen() {
       <SleepTimerModal
         visible={sleepTimerVisible}
         onClose={() => setSleepTimerVisible(false)}
+      />
+
+      {/* ── Lyrics modal with Tamil and English support ── */}
+      <LyricsModal
+        visible={lyricsModalVisible}
+        onClose={() => setLyricsModalVisible(false)}
+        currentSong={current}
       />
     </View>
   );

@@ -12,6 +12,7 @@ interface PlayerState {
   repeat: RepeatMode;
   setCurrentSong: (song: JioSaavnSong | null) => void;
   setQueue: (songs: JioSaavnSong[], startIndex?: number) => void;
+  appendToQueue: (newSongs: JioSaavnSong[]) => void;
   setIsPlaying: (v: boolean) => void;
   toggleShuffle: () => void;
   cycleRepeat: () => void;
@@ -33,6 +34,13 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       queue: songs,
       currentSong: songs[startIndex] ?? null,
     }),
+  appendToQueue: (newSongs) => {
+    const currentQueue = get().queue;
+    const existingIds = new Set(currentQueue.map((s) => s.id));
+    const toAdd = newSongs.filter((s) => !existingIds.has(s.id));
+    if (toAdd.length === 0) return;
+    set({ queue: [...currentQueue, ...toAdd] });
+  },
   setIsPlaying: (v) => {
     if (get().isPlaying === v) return;
     set({ isPlaying: v });
