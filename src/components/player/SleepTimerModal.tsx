@@ -1,4 +1,4 @@
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   Modal,
   View,
@@ -6,6 +6,8 @@ import {
   Pressable,
   StyleSheet,
   ScrollView,
+  Animated,
+  PanResponder,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -41,6 +43,55 @@ export const SleepTimerModal = memo(function SleepTimerModal({
   const setTimerEndOfTrack = useSleepTimerStore((s) => s.setTimerEndOfTrack);
   const clearTimer = useSleepTimerStore((s) => s.clearTimer);
 
+  const panY = useRef(new Animated.Value(0)).current;
+  const isClosing = useRef(false);
+
+  useEffect(() => {
+    if (visible) {
+      isClosing.current = false;
+      panY.setValue(0);
+    }
+  }, [visible, panY]);
+
+  const handleClose = useCallback(() => {
+    if (isClosing.current) return;
+    isClosing.current = true;
+    Animated.timing(panY, {
+      toValue: 700,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(() => {
+      onClose();
+    });
+  }, [onClose, panY]);
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: (_, gestureState) => gestureState.dy > 5,
+        onPanResponderMove: (_, gestureState) => {
+          if (gestureState.dy > 0 && !isClosing.current) {
+            panY.setValue(gestureState.dy);
+          }
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          if (isClosing.current) return;
+          if (gestureState.dy > 50 || gestureState.vy > 0.4) {
+            handleClose();
+          } else {
+            Animated.spring(panY, {
+              toValue: 0,
+              friction: 8,
+              tension: 200,
+              useNativeDriver: true,
+            }).start();
+          }
+        },
+      }),
+    [handleClose, panY]
+  );
+
   const handleSelectOption = useCallback(
     (option: SleepTimerOption) => {
       if (option === 'end_of_track') {
@@ -48,15 +99,15 @@ export const SleepTimerModal = memo(function SleepTimerModal({
       } else {
         setTimerMinutes(option);
       }
-      onClose();
+      handleClose();
     },
-    [setTimerMinutes, setTimerEndOfTrack, onClose]
+    [setTimerMinutes, setTimerEndOfTrack, handleClose]
   );
 
   const handleTurnOff = useCallback(() => {
     clearTimer();
-    onClose();
-  }, [clearTimer, onClose]);
+    handleClose();
+  }, [clearTimer, handleClose]);
 
   const remainingLabel =
     mode === 'end_of_track'
@@ -69,34 +120,45 @@ export const SleepTimerModal = memo(function SleepTimerModal({
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
-      onRequestClose={onClose}
+      animationType="fade"
+      onRequestClose={handleClose}
     >
-      <Pressable style={styles.backdrop} onPress={onClose} />
-      <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing[4]) + spacing[2] }]}>
-        <View style={styles.handle} />
+      <Pressable style={styles.backdrop} onPress={handleClose} />
+      <Animated.View
+        style={[
+          styles.sheet,
+          {
+            paddingBottom: Math.max(insets.bottom, spacing[4]) + spacing[2],
+            transform: [{ translateY: panY }],
+          },
+        ]}
+      >
+        {/* Drag header with swipe down gesture */}
+        <View {...panResponder.panHandlers} style={styles.dragHeader}>
+          <View style={styles.handle} />
 
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <View style={styles.iconCircle}>
-              <Ionicons name="moon" size={18} color={colors.brand.light} />
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.headerLeft}>
+              <View style={styles.iconCircle}>
+                <Ionicons name="moon" size={18} color={colors.brand.light} />
+              </View>
+              <View>
+                <Text style={styles.title}>Sleep Timer</Text>
+                <Text style={styles.subtitle}>Automatically stop music</Text>
+              </View>
             </View>
-            <View>
-              <Text style={styles.title}>Sleep Timer</Text>
-              <Text style={styles.subtitle}>Automatically stop music</Text>
-            </View>
+
+            <Pressable
+              onPress={handleClose}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Close sleep timer"
+              style={styles.closeBtn}
+            >
+              <Ionicons name="close" size={20} color={colors.text.secondary} />
+            </Pressable>
           </View>
-
-          <Pressable
-            onPress={onClose}
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityLabel="Close sleep timer"
-            style={styles.closeBtn}
-          >
-            <Ionicons name="close" size={20} color={colors.text.secondary} />
-          </Pressable>
         </View>
 
         {/* Active Timer Banner */}
@@ -128,6 +190,11 @@ export const SleepTimerModal = memo(function SleepTimerModal({
           style={styles.optionsList}
           showsVerticalScrollIndicator={false}
           bounces={false}
+          onScrollEndDrag={(e) => {
+            if (e.nativeEvent.contentOffset.y < -35) {
+              handleClose();
+            }
+          }}
         >
           {OPTIONS.map((item) => {
             const isSelected =
@@ -171,7 +238,7 @@ export const SleepTimerModal = memo(function SleepTimerModal({
             );
           })}
         </ScrollView>
-      </View>
+      </Animated.View>
     </Modal>
   );
 });
@@ -190,6 +257,10 @@ const styles = StyleSheet.create({
     paddingTop: spacing[3],
     paddingHorizontal: spacing[4],
     maxHeight: '78%',
+  },
+  dragHeader: {
+    width: '100%',
+    paddingBottom: spacing[1],
   },
   handle: {
     width: 38,

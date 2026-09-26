@@ -68,16 +68,25 @@ export function PlaybackStoreSync() {
   useEffect(() => {
     if (!isSleepActive || sleepMode !== 'minutes' || !targetEndTime) return;
 
-    const interval = setInterval(() => {
+    const checkTimer = () => {
       const now = Date.now();
       const diffSec = Math.max(0, Math.round((targetEndTime - now) / 1000));
       useSleepTimerStore.getState().updateRemainingSeconds(diffSec);
 
       if (diffSec <= 0) {
-        clearInterval(interval);
         void TrackPlayer.pause();
         usePlayerStore.getState().setIsPlaying(false);
         useSleepTimerStore.getState().clearTimer();
+        return true;
+      }
+      return false;
+    };
+
+    if (checkTimer()) return;
+
+    const interval = setInterval(() => {
+      if (checkTimer()) {
+        clearInterval(interval);
       }
     }, 1000);
 
@@ -88,13 +97,16 @@ export function PlaybackStoreSync() {
   useEffect(() => {
     if (!isSleepActive || sleepMode !== 'end_of_track') return;
 
-    let initialTrackId: string | undefined;
+    let initialTrackId: string | undefined = usePlayerStore.getState().currentSong?.id;
     void TrackPlayer.getActiveTrack().then((t) => {
-      initialTrackId = t?.id;
+      if (t?.id != null) {
+        initialTrackId = String(t.id);
+      }
     });
 
     const sub = TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, (e) => {
-      if (initialTrackId !== undefined && e.track?.id !== initialTrackId) {
+      const nextId = e.track?.id != null ? String(e.track.id) : undefined;
+      if (initialTrackId !== undefined && nextId !== undefined && nextId !== initialTrackId) {
         void TrackPlayer.pause();
         usePlayerStore.getState().setIsPlaying(false);
         useSleepTimerStore.getState().clearTimer();

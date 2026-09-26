@@ -23,6 +23,8 @@ import {
   FlatList,
   Modal,
   ActivityIndicator,
+  PanResponder,
+  useWindowDimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -189,13 +191,15 @@ function HeartBurst({ visible }: { visible: boolean }) {
   );
 }
 
-// ─── Queue Sheet (same rows as Library / lists) ───────────────────────────────
+// ─── Queue Sheet (swipe down to close, Up Next & Favorites tabs) ─────────────
 const QueueSheet = memo(function QueueSheet({
   visible,
   queue,
   onClose,
   onPlayIndex,
+  onPlayFavorites,
   userId,
+  userLikedSongs,
   isLiked,
   toggleLike,
   openAddToPlaylist,
@@ -204,42 +208,255 @@ const QueueSheet = memo(function QueueSheet({
   queue: JioSaavnSong[];
   onClose: () => void;
   onPlayIndex: (index: number) => void;
+  onPlayFavorites?: (songs: JioSaavnSong[], index: number) => void;
   userId: string | null;
+  userLikedSongs?: string;
   isLiked: (id: string) => boolean;
   toggleLike: (id: string, liked: boolean) => void;
   openAddToPlaylist: (song: JioSaavnSong) => void;
 }>) {
   const insets = useSafeAreaInsets();
+  const [activeTab, setActiveTab] = useState<'queue' | 'favorites'>('queue');
+  const panY = useRef(new Animated.Value(0)).current;
+  const isClosing = useRef(false);
+
+  useEffect(() => {
+    if (visible) {
+      isClosing.current = false;
+      panY.setValue(0);
+    }
+  }, [visible, panY]);
+
+  const handleClose = useCallback(() => {
+    if (isClosing.current) return;
+    isClosing.current = true;
+    Animated.timing(panY, {
+      toValue: 700,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(() => {
+      onClose();
+    });
+  }, [onClose, panY]);
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: (_, gestureState) => gestureState.dy > 5,
+        onPanResponderMove: (_, gestureState) => {
+          if (gestureState.dy > 0 && !isClosing.current) {
+            panY.setValue(gestureState.dy);
+          }
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          if (isClosing.current) return;
+          if (gestureState.dy > 50 || gestureState.vy > 0.4) {
+            handleClose();
+          } else {
+            Animated.spring(panY, {
+              toValue: 0,
+              friction: 8,
+              tension: 200,
+              useNativeDriver: true,
+            }).start();
+          }
+        },
+      }),
+    [handleClose, panY]
+  );
+
+  const likedIds = useMemo(
+    () => (userLikedSongs ? parseJsonArray<string>(userLikedSongs, []) : []),
+    [userLikedSongs]
+  );
+
+  const likedSongsQ = useQuery({
+    queryKey: queryKeys.likedSongs(likedIds.join(',')),
+    queryFn: async () => {
+      const results = await Promise.allSettled(
+        likedIds.slice(0, 50).map((id) => getSongById(id))
+      );
+      return results
+        .filter((r): r is PromiseFulfilledResult<JioSaavnSong> => r.status === 'fulfilled' && !!r.value)
+        .map((r) => r.value);
+    },
+    enabled: visible && activeTab === 'favorites' && !!userId && likedIds.length > 0,
+    staleTime: 60_000,
+  });
+
+  const favoriteSongs = likedSongsQ.data ?? [];
+
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.sheetBackdrop} onPress={onClose} />
-      <View style={[styles.sheet, styles.queueSheet, { paddingBottom: insets.bottom + spacing[4] }]}>
-        <View style={styles.sheetHandle} />
-        <Text style={styles.sheetTitle}>Queue · {queue.length} tracks</Text>
-        <FlatList
-          data={queue}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.queueListContent}
-          keyboardShouldPersistTaps="handled"
-          renderItem={({ item, index: rowIndex }) => (
-            <SongRow
-              song={item}
-              onPress={() => {
-                onPlayIndex(rowIndex);
-                onClose();
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
+      <Pressable style={styles.sheetBackdrop} onPress={handleClose} />
+      <Animated.View
+        style={[
+          styles.sheet,
+          styles.queueSheet,
+          {
+            paddingBottom: Math.max(insets.bottom, spacing[4]),
+            transform: [{ translateY: panY }],
+          },
+        ]}
+      >
+        {/* Swipe-down drag header */}
+        <View {...panResponder.panHandlers} style={styles.sheetDragHeader}>
+          <View style={styles.sheetHandle} />
+          <View style={styles.queueHeaderRow}>
+            <View style={styles.queueTabRow}>
+              <Pressable
+                style={[styles.queueTabBtn, activeTab === 'queue' && styles.queueTabBtnActive]}
+                onPress={() => setActiveTab('queue')}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: activeTab === 'queue' }}
+              >
+                <Ionicons
+                  name="list"
+                  size={15}
+                  color={activeTab === 'queue' ? colors.brand.light : colors.text.tertiary}
+                />
+                <Text
+                  style={[
+                    styles.queueTabText,
+                    activeTab === 'queue' && styles.queueTabTextActive,
+                  ]}
+                >
+                  Up Next ({queue.length})
+                </Text>
+              </Pressable>
+
+              {userId ? (
+                <Pressable
+                  style={[styles.queueTabBtn, activeTab === 'favorites' && styles.queueTabBtnActive]}
+                  onPress={() => setActiveTab('favorites')}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: activeTab === 'favorites' }}
+                >
+                  <Ionicons
+                    name="heart"
+                    size={14}
+                    color={activeTab === 'favorites' ? colors.accent.pink : colors.text.tertiary}
+                  />
+                  <Text
+                    style={[
+                      styles.queueTabText,
+                      activeTab === 'favorites' && styles.queueTabTextActive,
+                    ]}
+                  >
+                    Favorites ({likedIds.length})
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
+
+            <Pressable
+              onPress={handleClose}
+              hitSlop={12}
+              style={styles.sheetCloseBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Close queue"
+            >
+              <Ionicons name="close" size={20} color={colors.text.secondary} />
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Content list */}
+        {activeTab === 'queue' ? (
+          queue.length === 0 ? (
+            <View style={styles.queueEmptyWrap}>
+              <Ionicons name="musical-notes-outline" size={32} color={colors.text.tertiary} />
+              <Text style={styles.queueEmptyText}>Queue is empty</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={queue}
+              keyExtractor={(item, index) => `${item.id}-${index}`}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.queueListContent}
+              keyboardShouldPersistTaps="handled"
+              onScrollEndDrag={(e) => {
+                if (e.nativeEvent.contentOffset.y < -35) {
+                  handleClose();
+                }
               }}
-              liked={isLiked(item.id)}
-              onToggleLike={
-                userId ? () => toggleLike(item.id, isLiked(item.id)) : undefined
-              }
-              showLike={!!userId}
-              showAddToPlaylist={!!userId}
-              onAddToPlaylist={userId ? () => openAddToPlaylist(item) : undefined}
+              renderItem={({ item, index: rowIndex }) => (
+                <SongRow
+                  song={item}
+                  index={rowIndex + 1}
+                  onPress={() => {
+                    onPlayIndex(rowIndex);
+                    handleClose();
+                  }}
+                  liked={isLiked(item.id)}
+                  onToggleLike={
+                    userId ? () => toggleLike(item.id, isLiked(item.id)) : undefined
+                  }
+                  showLike={!!userId}
+                  showAddToPlaylist={!!userId}
+                  onAddToPlaylist={userId ? () => openAddToPlaylist(item) : undefined}
+                />
+              )}
             />
-          )}
-        />
-      </View>
+          )
+        ) : !userId ? (
+          <View style={styles.queueEmptyWrap}>
+            <Ionicons name="lock-closed-outline" size={32} color={colors.text.tertiary} />
+            <Text style={styles.queueEmptyText}>Sign in to view favorite songs</Text>
+          </View>
+        ) : likedIds.length === 0 ? (
+          <View style={styles.queueEmptyWrap}>
+            <Ionicons name="heart-outline" size={32} color={colors.text.tertiary} />
+            <Text style={styles.queueEmptyText}>No favorite songs yet</Text>
+            <Text style={styles.queueEmptySubText}>
+              Tap the heart icon on any track to save it here
+            </Text>
+          </View>
+        ) : likedSongsQ.isLoading ? (
+          <View style={styles.queueLoadingWrap}>
+            <ActivityIndicator size="small" color={colors.brand.primary} />
+            <Text style={styles.queueLoadingText}>Loading favorites…</Text>
+          </View>
+        ) : favoriteSongs.length === 0 ? (
+          <View style={styles.queueEmptyWrap}>
+            <Ionicons name="alert-circle-outline" size={32} color={colors.text.tertiary} />
+            <Text style={styles.queueEmptyText}>Unable to load favorites</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={favoriteSongs}
+            keyExtractor={(item, index) => `${item.id}-${index}`}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.queueListContent}
+            keyboardShouldPersistTaps="handled"
+            onScrollEndDrag={(e) => {
+              if (e.nativeEvent.contentOffset.y < -35) {
+                handleClose();
+              }
+            }}
+            renderItem={({ item, index: rowIndex }) => (
+              <SongRow
+                song={item}
+                index={rowIndex + 1}
+                onPress={() => {
+                  if (onPlayFavorites) {
+                    onPlayFavorites(favoriteSongs, rowIndex);
+                  }
+                  handleClose();
+                }}
+                liked={isLiked(item.id)}
+                onToggleLike={
+                  userId ? () => toggleLike(item.id, isLiked(item.id)) : undefined
+                }
+                showLike={!!userId}
+                showAddToPlaylist={!!userId}
+                onAddToPlaylist={userId ? () => openAddToPlaylist(item) : undefined}
+              />
+            )}
+          />
+        )}
+      </Animated.View>
     </Modal>
   );
 });
@@ -379,7 +596,7 @@ const NowPlayingMeta = memo(function NowPlayingMeta({
     <View style={styles.titleBlock}>
       <View style={styles.titleRow}>
         <View style={styles.titleTextCol}>
-          <Text style={styles.title} numberOfLines={1} accessibilityRole="header">
+          <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail" accessibilityRole="header">
             {current.name}
           </Text>
 
@@ -387,28 +604,35 @@ const NowPlayingMeta = memo(function NowPlayingMeta({
             <Pressable
               onPress={onArtist}
               disabled={!canOpenArtist}
-              style={({ pressed }) => (canOpenArtist && pressed ? styles.linkPressed : undefined)}
+              style={({ pressed }) => [
+                styles.artistPressable,
+                canOpenArtist && pressed && styles.linkPressed,
+              ]}
               accessibilityRole={canOpenArtist ? 'button' : 'text'}
               accessibilityLabel={canOpenArtist ? `Open artist ${artistLabel}` : undefined}
             >
               <Text
                 style={[styles.artist, canOpenArtist ? styles.artistLink : styles.artistPlain]}
                 numberOfLines={1}
+                ellipsizeMode="tail"
               >
                 {artistLabel}
               </Text>
             </Pressable>
 
-            {canOpenAlbum ? (
+            {canOpenAlbum && albumLabel ? (
               <>
                 <Text style={styles.bulletDot}> • </Text>
                 <Pressable
                   onPress={onAlbum}
-                  style={({ pressed }) => (pressed ? styles.linkPressed : undefined)}
+                  style={({ pressed }) => [
+                    styles.albumPressable,
+                    pressed && styles.linkPressed,
+                  ]}
                   accessibilityRole="button"
                   accessibilityLabel={`Open album ${albumLabel}`}
                 >
-                  <Text style={styles.albumLine} numberOfLines={1}>
+                  <Text style={styles.albumLine} numberOfLines={1} ellipsizeMode="tail">
                     {albumLabel}
                   </Text>
                 </Pressable>
@@ -700,226 +924,13 @@ const NowPlayingScrubber = memo(function NowPlayingScrubber({
   );
 });
 
-// ─── Bottom Up-Next / Queue & Favorites Selection Section ────────────────────
-type BottomSectionTab = 'queue' | 'favorites';
 
-const NowPlayingBottomSection = memo(function NowPlayingBottomSection({
-  queue,
-  currentTrackId,
-  userId,
-  userLikedSongs,
-  onPlayQueueIndex,
-  onPlayFavorites,
-  isLiked,
-  toggleLike,
-  openAddToPlaylist,
-}: {
-  queue: JioSaavnSong[];
-  currentTrackId: string | undefined;
-  userId: string | null;
-  userLikedSongs: string | undefined;
-  onPlayQueueIndex: (index: number) => void;
-  onPlayFavorites: (songs: JioSaavnSong[], index: number) => void;
-  isLiked: (id: string) => boolean;
-  toggleLike: (id: string, liked: boolean) => void;
-  openAddToPlaylist: (song: JioSaavnSong) => void;
-}) {
-  const [activeTab, setActiveTab] = useState<BottomSectionTab>('queue');
-
-  const likedIds = useMemo(
-    () => (userLikedSongs ? parseJsonArray<string>(userLikedSongs, []) : []),
-    [userLikedSongs]
-  );
-
-  const likedSongsQ = useQuery({
-    queryKey: queryKeys.likedSongs(likedIds.join(',')),
-    queryFn: async () => {
-      const results = await Promise.allSettled(
-        likedIds.slice(0, 50).map((id) => getSongById(id))
-      );
-      return results
-        .filter((r): r is PromiseFulfilledResult<JioSaavnSong> => r.status === 'fulfilled' && !!r.value)
-        .map((r) => r.value);
-    },
-    enabled: activeTab === 'favorites' && !!userId && likedIds.length > 0,
-    staleTime: 60_000,
-  });
-
-  const favoriteSongs = likedSongsQ.data ?? [];
-
-  return (
-    <View style={bottomStyles.container}>
-      {/* Tab Switcher */}
-      <View style={bottomStyles.tabBar}>
-        <Pressable
-          style={[
-            bottomStyles.tabBtn,
-            activeTab === 'queue' && bottomStyles.tabBtnActive,
-          ]}
-          onPress={() => setActiveTab('queue')}
-          accessibilityRole="tab"
-          accessibilityState={{ selected: activeTab === 'queue' }}
-        >
-          <Ionicons
-            name="list"
-            size={16}
-            color={activeTab === 'queue' ? colors.brand.light : colors.text.tertiary}
-          />
-          <Text
-            style={[
-              bottomStyles.tabText,
-              activeTab === 'queue' && bottomStyles.tabTextActive,
-            ]}
-          >
-            Up Next
-          </Text>
-          <View
-            style={[
-              bottomStyles.countBadge,
-              activeTab === 'queue' && bottomStyles.countBadgeActive,
-            ]}
-          >
-            <Text
-              style={[
-                bottomStyles.countBadgeText,
-                activeTab === 'queue' && bottomStyles.countBadgeTextActive,
-              ]}
-            >
-              {queue.length}
-            </Text>
-          </View>
-        </Pressable>
-
-        <Pressable
-          style={[
-            bottomStyles.tabBtn,
-            activeTab === 'favorites' && bottomStyles.tabBtnActive,
-          ]}
-          onPress={() => setActiveTab('favorites')}
-          accessibilityRole="tab"
-          accessibilityState={{ selected: activeTab === 'favorites' }}
-        >
-          <Ionicons
-            name="heart"
-            size={15}
-            color={activeTab === 'favorites' ? colors.accent.pink : colors.text.tertiary}
-          />
-          <Text
-            style={[
-              bottomStyles.tabText,
-              activeTab === 'favorites' && bottomStyles.tabTextActive,
-            ]}
-          >
-            Favorites
-          </Text>
-          <View
-            style={[
-              bottomStyles.countBadge,
-              activeTab === 'favorites' && bottomStyles.countBadgeActive,
-            ]}
-          >
-            <Text
-              style={[
-                bottomStyles.countBadgeText,
-                activeTab === 'favorites' && bottomStyles.countBadgeTextActive,
-              ]}
-            >
-              {likedIds.length}
-            </Text>
-          </View>
-        </Pressable>
-      </View>
-
-      {/* Content */}
-      <View style={bottomStyles.card}>
-        {activeTab === 'queue' ? (
-          queue.length === 0 ? (
-            <View style={bottomStyles.emptyWrap}>
-              <Ionicons name="musical-notes-outline" size={26} color={colors.text.tertiary} />
-              <Text style={bottomStyles.emptyText}>Queue is empty</Text>
-            </View>
-          ) : (
-            <ScrollView
-              style={bottomStyles.scrollArea}
-              contentContainerStyle={bottomStyles.scrollContent}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              nestedScrollEnabled
-            >
-              {queue.map((item, index) => (
-                <SongRow
-                  key={`${item.id}-${index}`}
-                  song={item}
-                  index={index + 1}
-                  onPress={() => onPlayQueueIndex(index)}
-                  liked={isLiked(item.id)}
-                  onToggleLike={
-                    userId ? () => toggleLike(item.id, isLiked(item.id)) : undefined
-                  }
-                  showLike={!!userId}
-                  showAddToPlaylist={!!userId}
-                  onAddToPlaylist={userId ? () => openAddToPlaylist(item) : undefined}
-                />
-              ))}
-            </ScrollView>
-          )
-        ) : !userId ? (
-          <View style={bottomStyles.emptyWrap}>
-            <Ionicons name="lock-closed-outline" size={26} color={colors.text.tertiary} />
-            <Text style={bottomStyles.emptyText}>Sign in to view favorite songs</Text>
-          </View>
-        ) : likedIds.length === 0 ? (
-          <View style={bottomStyles.emptyWrap}>
-            <Ionicons name="heart-outline" size={26} color={colors.text.tertiary} />
-            <Text style={bottomStyles.emptyText}>No favorite songs yet</Text>
-            <Text style={bottomStyles.emptySubText}>
-              Tap the heart icon on any track to save it here
-            </Text>
-          </View>
-        ) : likedSongsQ.isLoading ? (
-          <View style={bottomStyles.loadingWrap}>
-            <ActivityIndicator size="small" color={colors.brand.primary} />
-            <Text style={bottomStyles.loadingText}>Loading favorites…</Text>
-          </View>
-        ) : favoriteSongs.length === 0 ? (
-          <View style={bottomStyles.emptyWrap}>
-            <Ionicons name="alert-circle-outline" size={26} color={colors.text.tertiary} />
-            <Text style={bottomStyles.emptyText}>Unable to load favorites</Text>
-          </View>
-        ) : (
-          <ScrollView
-            style={bottomStyles.scrollArea}
-            contentContainerStyle={bottomStyles.scrollContent}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            nestedScrollEnabled
-          >
-            {favoriteSongs.map((item, index) => (
-              <SongRow
-                key={`${item.id}-${index}`}
-                song={item}
-                index={index + 1}
-                onPress={() => onPlayFavorites(favoriteSongs, index)}
-                liked={isLiked(item.id)}
-                onToggleLike={
-                  userId ? () => toggleLike(item.id, isLiked(item.id)) : undefined
-                }
-                showLike={!!userId}
-                showAddToPlaylist={!!userId}
-                onAddToPlaylist={userId ? () => openAddToPlaylist(item) : undefined}
-              />
-            ))}
-          </ScrollView>
-        )}
-      </View>
-    </View>
-  );
-});
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 export function NowPlayingScreen() {
   const navigation = useNavigation<MainNav>();
   const insets = useSafeAreaInsets();
+  const { height: screenHeight, width: screenWidth } = useWindowDimensions();
 
   const goBack = useCallback(() => navigation.goBack(), [navigation]);
 
@@ -1105,9 +1116,12 @@ export function NowPlayingScreen() {
   }
 
   const liked = isLiked(current.id);
-  const scrollBottom = Math.max(insets.bottom, spacing[4]) + spacing[6];
-  const coverSize = Math.min(Math.max(Math.round(layout.screenWidth * 0.32), 110), 140);
-  const topPad = Math.max(insets.top, spacing[2]);
+  const coverSize = Math.min(
+    Math.round(screenWidth * 0.78),
+    Math.round(screenHeight * 0.40),
+    350
+  );
+  const topPad = Math.max(insets.top, spacing[2]) + 35;
   const hasBgArt = art.trim().length > 0;
 
   return (
@@ -1144,80 +1158,128 @@ export function NowPlayingScreen() {
               </GestureDetector>
             </View>
 
-            {/* Main content: Static Player Hero + Scrollable Songs List */}
-            <View
-              style={[
-                styles.mainLayout,
-                {
-                  paddingHorizontal: layout.screenPadding,
-                  paddingBottom: Math.max(insets.bottom, spacing[3]),
-                },
-              ]}
-            >
-              {/* ── Static Top Player Hero ── */}
-              <View style={styles.staticHero}>
-                {/* ── Cover art (compact: 140px, swipe + double-tap) ── */}
-                <CoverArt
-                  uri={art || undefined}
-                  size={coverSize}
-                  songId={current.id}
-                  onSwipeLeft={onSwipeLeft}
-                  onSwipeRight={onSwipeRight}
-                  onDoubleTap={onDoubleTapCover}
-                />
+            {/* Main content: Full Player Hero with balanced vertical distribution */}
+            <GestureDetector gesture={swipeDownToClose}>
+              <View
+                style={[
+                  styles.mainLayout,
+                  {
+                    paddingHorizontal: layout.screenPadding,
+                    paddingBottom: Math.max(insets.bottom, spacing[4]),
+                  },
+                ]}
+              >
+                {/* ── Center Hero: Large Album Art + Visualizer ── */}
+                <View style={styles.heroSection}>
+                  <CoverArt
+                    uri={art || undefined}
+                    size={coverSize}
+                    songId={current.id}
+                    onSwipeLeft={onSwipeLeft}
+                    onSwipeRight={onSwipeRight}
+                    onDoubleTap={onDoubleTapCover}
+                  />
 
-                {/* ── Waveform visualizer (compact) ── */}
-                <WaveformVisualizer isPlaying={isPlaying} />
+                  {/* ── Waveform visualizer ── */}
+                  <WaveformVisualizer isPlaying={isPlaying} />
+                </View>
 
-                {/* ── Meta (compact title, artist, album, like) ── */}
-                <NowPlayingMeta
-                  current={current}
-                  userId={userId}
-                  liked={liked}
-                  canOpenArtist={canOpenArtist}
-                  canOpenAlbum={canOpenAlbum}
-                  onLike={() => toggleLike(current.id, liked)}
-                  onAddToPlaylist={() => openAddToPlaylist(current)}
-                  onArtist={goToArtist}
-                  onAlbum={goToAlbum}
-                />
+                {/* ── Song Meta + Controls Block ── */}
+                <View style={styles.controlsSection}>
+                  {/* ── Meta (Song title, artist, album, language, like) ── */}
+                  <NowPlayingMeta
+                    current={current}
+                    userId={userId}
+                    liked={liked}
+                    canOpenArtist={canOpenArtist}
+                    canOpenAlbum={canOpenAlbum}
+                    onLike={() => toggleLike(current.id, liked)}
+                    onAddToPlaylist={() => openAddToPlaylist(current)}
+                    onArtist={goToArtist}
+                    onAlbum={goToAlbum}
+                  />
 
-                {/* ── Scrubber + time labels (compact bar) ── */}
-                <NowPlayingScrubber seekTo={seekTo} />
+                  {/* ── Scrubber + time labels ── */}
+                  <NowPlayingScrubber seekTo={seekTo} />
 
-                {/* ── Playback controls (static) ── */}
-                <PlayerControls
-                  isPlaying={isPlaying}
-                  shuffle={shuffle}
-                  repeat={repeat}
-                  onPrev={skipToPrevious}
-                  onNext={skipToNext}
-                  onTogglePlay={togglePlay}
-                  onShuffle={toggleShuffle}
-                  onRepeat={cycleRepeat}
-                />
-
-                {/* ── Lyrics (compact row if lyrics available) ── */}
-                {current.hasLyrics ? (
-                  <View style={styles.compactLyricsRow}>
-                    <LyricsButton onPress={goToLyrics} />
+                  {/* ── Playback controls (Shuffle, Prev, Play/Pause, Next, Repeat) ── */}
+                  <View style={styles.playerControlsWrap}>
+                    <PlayerControls
+                      isPlaying={isPlaying}
+                      shuffle={shuffle}
+                      repeat={repeat}
+                      onPrev={skipToPrevious}
+                      onNext={skipToNext}
+                      onTogglePlay={togglePlay}
+                      onShuffle={toggleShuffle}
+                      onRepeat={cycleRepeat}
+                    />
                   </View>
-                ) : null}
-              </View>
 
-              {/* ── ONLY Scroll the Song List (flex: 1) ── */}
-              <NowPlayingBottomSection
-                queue={queue}
-                currentTrackId={current.id}
-                userId={userId}
-                userLikedSongs={user?.likedSongs}
-                onPlayQueueIndex={onQueuePlayIndex}
-                onPlayFavorites={onPlayFavorites}
-                isLiked={isLiked}
-                toggleLike={toggleLike}
-                openAddToPlaylist={openAddToPlaylist}
-              />
-            </View>
+                  {/* ── Bottom Utility Bar (Sleep Timer, Lyrics, Queue) ── */}
+                  <View style={styles.bottomUtilityRow}>
+                    <Pressable
+                      onPress={() => setSleepTimerVisible(true)}
+                      style={({ pressed }) => [
+                        styles.utilityChip,
+                        useSleepTimerStore.getState().isActive && styles.utilityChipActive,
+                        pressed && styles.utilityChipPressed,
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel="Set sleep timer"
+                    >
+                      <Ionicons
+                        name={useSleepTimerStore.getState().isActive ? 'moon' : 'moon-outline'}
+                        size={16}
+                        color={useSleepTimerStore.getState().isActive ? colors.brand.light : colors.text.secondary}
+                      />
+                      <Text
+                        style={[
+                          styles.utilityChipText,
+                          useSleepTimerStore.getState().isActive && styles.utilityChipTextActive,
+                        ]}
+                      >
+                        {useSleepTimerStore.getState().isActive
+                          ? useSleepTimerStore.getState().mode === 'end_of_track'
+                            ? 'Stops: Track'
+                            : `Stops in ${Math.ceil((useSleepTimerStore.getState().remainingSeconds ?? 0) / 60)}m`
+                          : 'Sleep Timer'}
+                      </Text>
+                    </Pressable>
+
+                    {current.hasLyrics ? (
+                      <Pressable
+                        onPress={goToLyrics}
+                        style={({ pressed }) => [
+                          styles.utilityChip,
+                          pressed && styles.utilityChipPressed,
+                        ]}
+                        accessibilityRole="button"
+                        accessibilityLabel="Open lyrics"
+                      >
+                        <Ionicons name="text-outline" size={16} color={colors.text.secondary} />
+                        <Text style={styles.utilityChipText}>Lyrics</Text>
+                      </Pressable>
+                    ) : null}
+
+                    <Pressable
+                      onPress={() => setQueueVisible(true)}
+                      style={({ pressed }) => [
+                        styles.utilityChip,
+                        pressed && styles.utilityChipPressed,
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel="Open queue"
+                    >
+                      <Ionicons name="list" size={16} color={colors.text.secondary} />
+                      <Text style={styles.utilityChipText}>
+                        Up Next {queue.length > 0 ? `(${queue.length})` : ''}
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </View>
+            </GestureDetector>
           </View>
         </BlurView>
       </View>
@@ -1228,7 +1290,9 @@ export function NowPlayingScreen() {
         queue={queue}
         onClose={() => setQueueVisible(false)}
         onPlayIndex={onQueuePlayIndex}
+        onPlayFavorites={onPlayFavorites}
         userId={userId}
+        userLikedSongs={user?.likedSongs}
         isLiked={isLiked}
         toggleLike={toggleLike}
         openAddToPlaylist={openAddToPlaylist}
@@ -1259,10 +1323,59 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     alignItems: 'center',
+    justifyContent: 'space-evenly',
+    paddingTop: spacing[3],
   },
-  staticHero: {
+  heroSection: {
     width: '100%',
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  controlsSection: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  playerControlsWrap: {
+    width: '100%',
+    marginTop: spacing[3],
+    marginBottom: spacing[2],
+    alignItems: 'center',
+  },
+  bottomUtilityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[2],
+    width: '100%',
+    marginTop: spacing[2],
+  },
+  utilityChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 7,
+    paddingHorizontal: spacing[3] + 2,
+    borderRadius: borderRadius.full,
+    backgroundColor: 'rgba(28, 28, 35, 0.75)',
+    borderWidth: 1,
+    borderColor: 'rgba(41, 41, 50, 0.65)',
+  },
+  utilityChipActive: {
+    backgroundColor: 'rgba(139, 92, 246, 0.22)',
+    borderColor: 'rgba(139, 92, 246, 0.55)',
+  },
+  utilityChipPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.97 }],
+  },
+  utilityChipText: {
+    fontFamily: fonts.medium,
+    fontSize: fontSize.xs + 1,
+    color: colors.text.secondary,
+  },
+  utilityChipTextActive: {
+    fontFamily: fonts.bold,
+    color: colors.brand.light,
   },
   swipeDismissFill: { flex: 1 },
 
@@ -1327,19 +1440,19 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // ── Cover (compact) ──
+  // ── Cover ──
   coverWrap: {
-    marginBottom: spacing[1],
+    marginBottom: spacing[2],
     position: 'relative',
-    borderRadius: borderRadius.lg,
+    borderRadius: borderRadius.xl,
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.5,
-        shadowRadius: 18,
+        shadowColor: '#8B5CF6',
+        shadowOffset: { width: 0, height: 16 },
+        shadowOpacity: 0.45,
+        shadowRadius: 28,
       },
-      android: { elevation: 8 },
+      android: { elevation: 12 },
     }),
   },
   coverPlaceholder: {
@@ -1355,49 +1468,80 @@ const styles = StyleSheet.create({
     left: 0,
     height: '36%',
     backgroundColor: NP.sheen,
-    borderTopLeftRadius: borderRadius.lg,
-    borderTopRightRadius: borderRadius.lg,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
   },
   heartBurstWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: borderRadius.lg,
+    borderRadius: borderRadius.xl,
   },
 
-  // ── Meta (compact) ──
-  titleBlock: { width: '100%', marginBottom: 4, marginTop: 2 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing[2] },
-  titleTextCol: { flex: 1, minWidth: 0 },
+  // ── Meta ──
+  titleBlock: { width: '100%', marginBottom: spacing[1], marginTop: spacing[1] },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  titleTextCol: {
+    flex: 1,
+    minWidth: 0,
+    marginRight: spacing[2],
+    overflow: 'hidden',
+  },
   title: {
     fontFamily: fonts.bold,
-    fontSize: fontSize.md + 2,
+    fontSize: fontSize.xl + 2,
     color: colors.text.primary,
-    lineHeight: 22,
-    letterSpacing: -0.2,
+    lineHeight: 28,
+    letterSpacing: -0.3,
   },
   artistAlbumRow: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'nowrap',
-    marginTop: 2,
+    marginTop: 3,
+    width: '100%',
+    overflow: 'hidden',
   },
-  artist: { fontFamily: fonts.medium, fontSize: fontSize.xs + 1 },
+  artistPressable: {
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  artist: {
+    fontFamily: fonts.medium,
+    fontSize: fontSize.sm,
+  },
   artistLink: { color: colors.brand.light },
   artistPlain: { color: colors.text.secondary },
+  bulletDot: {
+    color: colors.text.tertiary,
+    fontSize: 10,
+    marginHorizontal: 3,
+    flexShrink: 0,
+  },
+  albumPressable: {
+    flexShrink: 2,
+    minWidth: 0,
+  },
   albumLine: {
     fontFamily: fonts.regular,
     fontSize: fontSize.xs,
     color: colors.text.tertiary,
-    maxWidth: 160,
   },
-  bulletDot: { color: colors.text.tertiary, fontSize: 10 },
-  badgeWrap: { marginLeft: spacing[2] },
+  badgeWrap: {
+    marginLeft: spacing[2],
+    flexShrink: 0,
+  },
   chevronHint: { color: colors.text.tertiary, fontFamily: fonts.regular },
   linkPressed: { opacity: 0.72 },
   metaActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[1],
+    flexShrink: 0,
   },
   likeWrap: {
     padding: spacing[1],
@@ -1407,26 +1551,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // ── Scrubber (compact) ──
-  scrubberBlock: { width: '100%', marginTop: spacing[1] },
+  // ── Scrubber ──
+  scrubberBlock: { width: '100%', marginTop: spacing[2] },
   times: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: spacing[1],
-    marginTop: 2,
+    marginTop: 4,
   },
   timeLabel: {
     fontFamily: fonts.regular,
-    fontSize: 11,
+    fontSize: fontSize.xs,
     color: colors.text.tertiary,
     fontVariant: ['tabular-nums'],
     letterSpacing: 0.2,
-  },
-
-  // ── Compact lyrics row ──
-  compactLyricsRow: {
-    width: '100%',
-    marginTop: spacing[1],
   },
 
   // ── Divider ──
@@ -1472,32 +1610,101 @@ const styles = StyleSheet.create({
   },
   sheet: {
     backgroundColor: colors.bg.secondary,
-    borderTopLeftRadius: borderRadius.lg + 4,
-    borderTopRightRadius: borderRadius.lg + 4,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderColor: NP.border,
     paddingTop: spacing[3],
     paddingHorizontal: layout.screenPadding,
-    maxHeight: '75%',
+    maxHeight: '85%',
   },
   queueSheet: { maxHeight: '85%' },
-  queueListContent: {
+  sheetDragHeader: {
+    width: '100%',
     paddingBottom: spacing[2],
+  },
+  queueHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing[2],
+  },
+  queueTabRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  queueTabBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: spacing[3],
+    borderRadius: borderRadius.full,
+    backgroundColor: 'rgba(28, 28, 35, 0.7)',
+    borderWidth: 1,
+    borderColor: 'rgba(41, 41, 50, 0.6)',
+  },
+  queueTabBtnActive: {
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    borderColor: 'rgba(139, 92, 246, 0.5)',
+  },
+  queueTabText: {
+    fontFamily: fonts.medium,
+    fontSize: fontSize.xs + 1,
+    color: colors.text.tertiary,
+  },
+  queueTabTextActive: {
+    fontFamily: fonts.bold,
+    color: colors.text.primary,
+  },
+  sheetCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: borderRadius.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  queueListContent: {
+    paddingBottom: spacing[4],
     paddingHorizontal: 0,
   },
   sheetHandle: {
-    width: 36,
+    width: 38,
     height: 4,
-    borderRadius: borderRadius.sm,
-    backgroundColor: colors.border.default,
+    borderRadius: borderRadius.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
     alignSelf: 'center',
-    marginBottom: spacing[4],
+    marginBottom: spacing[3],
   },
-  sheetTitle: {
-    fontFamily: fonts.bold,
-    fontSize: fontSize.lg,
-    color: colors.text.primary,
-    marginBottom: spacing[4],
+  queueEmptyWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing[8],
+    gap: spacing[2],
+  },
+  queueEmptyText: {
+    fontFamily: fonts.medium,
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
+  },
+  queueEmptySubText: {
+    fontFamily: fonts.regular,
+    fontSize: fontSize.xs,
+    color: colors.text.tertiary,
+  },
+  queueLoadingWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing[8],
+    gap: spacing[2],
+  },
+  queueLoadingText: {
+    fontFamily: fonts.medium,
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
   },
 
   // ── Empty state ──
@@ -1560,105 +1767,5 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     fontSize: fontSize.md,
     color: colors.text.inverse,
-  },
-});
-
-const bottomStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    width: '100%',
-    marginTop: spacing[2],
-  },
-  tabBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[2],
-    marginBottom: spacing[2],
-    paddingHorizontal: spacing[1],
-  },
-  tabBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[1] + 2,
-    paddingVertical: 5,
-    paddingHorizontal: spacing[3],
-    borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(28, 28, 35, 0.65)',
-    borderWidth: 1,
-    borderColor: 'rgba(41, 41, 50, 0.6)',
-  },
-  tabBtnActive: {
-    backgroundColor: 'rgba(139, 92, 246, 0.18)',
-    borderColor: 'rgba(139, 92, 246, 0.45)',
-  },
-  tabText: {
-    fontFamily: fonts.medium,
-    fontSize: fontSize.xs + 1,
-    color: colors.text.tertiary,
-  },
-  tabTextActive: {
-    color: colors.text.primary,
-  },
-  countBadge: {
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  countBadgeActive: {
-    backgroundColor: 'rgba(139, 92, 246, 0.35)',
-  },
-  countBadgeText: {
-    fontFamily: fonts.bold,
-    fontSize: 10,
-    color: colors.text.tertiary,
-  },
-  countBadgeTextActive: {
-    color: colors.brand.light,
-  },
-  card: {
-    flex: 1,
-    width: '100%',
-    borderRadius: borderRadius.xl,
-    backgroundColor: 'rgba(20, 20, 26, 0.65)',
-    borderWidth: 1,
-    borderColor: 'rgba(41, 41, 50, 0.65)',
-    overflow: 'hidden',
-  },
-  scrollArea: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingVertical: spacing[1],
-    paddingBottom: spacing[4],
-  },
-  emptyWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing[6],
-    paddingHorizontal: spacing[4],
-    gap: spacing[2],
-  },
-  emptyText: {
-    fontFamily: fonts.medium,
-    fontSize: fontSize.sm,
-    color: colors.text.secondary,
-  },
-  emptySubText: {
-    fontFamily: fonts.regular,
-    fontSize: fontSize.xs,
-    color: colors.text.tertiary,
-  },
-  loadingWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing[6],
-    gap: spacing[2],
-  },
-  loadingText: {
-    fontFamily: fonts.medium,
-    fontSize: fontSize.sm,
-    color: colors.text.secondary,
   },
 });
