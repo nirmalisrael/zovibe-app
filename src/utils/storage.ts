@@ -4,6 +4,7 @@ export const KEY_USER_ID = 'zovibe_user_id';
 export const KEY_LANG_PREFS = 'zovibe_lang_prefs';
 export const KEY_HOME_LANG_FILTER = 'zovibe_home_lang_filter';
 export const KEY_ONBOARDING_DONE = 'zovibe_onboarding_complete';
+export const KEY_RECENT_SEARCHES = 'zovibe_recent_searches';
 
 export async function getSecure(key: string): Promise<string | null> {
   try {

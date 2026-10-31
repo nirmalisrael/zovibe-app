@@ -57,7 +57,7 @@ export function SongRow({
           <Text style={[styles.title, isNowPlaying && styles.titleNowPlaying]} numberOfLines={1}>
             {song.name}
           </Text>
-          <Text style={styles.dur}>{formatTime(song.duration)}</Text>
+          <Text style={styles.dur}>{formatTime(song.duration ?? 0)}</Text>
         </View>
         <View style={styles.subRow}>
           <Text style={styles.sub} numberOfLines={1}>

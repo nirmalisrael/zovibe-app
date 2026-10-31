@@ -14,6 +14,6 @@ export function buildTrack(
     artist: getPrimaryArtistNames(song),
     album: getAlbumNameSafe(song),
     artwork: getCoverUrl(song, '500x500'),
-    duration: song.duration,
+    duration: song.duration ?? undefined,
   };
 }

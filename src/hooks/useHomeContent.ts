@@ -10,7 +10,7 @@ import {
   HOME_ALBUM_SECTIONS,
   HOME_SEEDS,
   albumMatchesHomeSection,
-  buildTrendingDiscoveryTerms,
+  buildPopularDiscoveryTerms,
   type HomeAlbumSection,
 } from '../constants/homeSeed';
 import {
@@ -21,7 +21,7 @@ import {
 } from '../constants/languages';
 import { queryKeys } from './queryKeys';
 
-type TrendingKey = 'trending';
+type PopularKey = 'popular';
 
 function buildHomeAlbumQueries(sections: readonly HomeAlbumSection[]) {
   return sections.flatMap((section) =>
@@ -39,7 +39,7 @@ function buildHomeAlbumQueries(sections: readonly HomeAlbumSection[]) {
   );
 }
 
-function useSectionSongs(section: TrendingKey, terms: readonly string[]) {
+function useSectionSongs(section: PopularKey, terms: readonly string[]) {
   return useQueries({
     queries: terms.map((term) => ({
       queryKey: queryKeys.homeSongs(section, term),
@@ -99,17 +99,9 @@ function songMatchesLanguageTokens(song: JioSaavnSong, tokens: string[] | null):
   return tokens.some((t) => L.includes(t));
 }
 
-function toSongTimestamp(song: JioSaavnSong): number {
-  const releaseTs = song.releaseDate ? Date.parse(song.releaseDate) : Number.NaN;
-  if (!Number.isNaN(releaseTs)) return releaseTs;
-  const y = Number(song.year);
-  if (!Number.isNaN(y) && y > 1900) return Date.UTC(y, 0, 1);
-  return 0;
-}
-
 /**
  * @param albumSections Sections to load (from {@link getHomeAlbumSectionsFromLangPrefs} or full catalog).
- * @param langPrefs Raw prefs for trending language filter; empty → no trending filter.
+ * @param langPrefs Raw preferences for filtering the popular-song discovery results.
  */
 export function useHomeContent(
   albumSections: readonly HomeAlbumSection[] = HOME_ALBUM_SECTIONS,
@@ -123,27 +115,29 @@ export function useHomeContent(
     () => getHomeAlbumSectionsFromLangPrefs([...langPrefs]),
     [langPrefsKey]
   );
-  const trendingTerms = useMemo(
-    () => buildTrendingDiscoveryTerms(prefSections),
+  const popularTerms = useMemo(
+    () => buildPopularDiscoveryTerms(prefSections),
     [prefSections?.join(',')]
   );
-  const trendingQ = useSectionSongs('trending', trendingTerms);
+  const popularQ = useSectionSongs('popular', popularTerms);
 
   const albumsBySection = mergeAlbumsBySection(albumResults);
 
-  const trendTokens = useMemo(() => getLanguageMatchTokensForPrefs([...langPrefs]), [langPrefsKey]);
+  const languageTokens = useMemo(
+    () => getLanguageMatchTokensForPrefs([...langPrefs]),
+    [langPrefsKey]
+  );
 
-  const flatTrending = flattenSongs(trendingQ);
-  const trendingSongs = flatTrending
-    .filter((s) => songMatchesLanguageTokens(s, trendTokens))
-    .sort((a, b) => toSongTimestamp(b) - toSongTimestamp(a));
+  const discoveredSongs = flattenSongs(popularQ);
+  const popularSongs = discoveredSongs
+    .filter((s) => songMatchesLanguageTokens(s, languageTokens))
+    .sort((a, b) => (b.playCount ?? 0) - (a.playCount ?? 0));
 
   const isInitialLoading =
-    !albumResults.every((q) => q.isFetched) || !trendingQ.every((q) => q.isFetched);
+    !albumResults.every((q) => q.isFetched) || !popularQ.every((q) => q.isFetched);
   const isFetching =
-    albumResults.some((q) => q.isFetching) || trendingQ.some((q) => q.isFetching);
-  const isError =
-    albumResults.some((q) => q.isError) || trendingQ.some((q) => q.isError);
+    albumResults.some((q) => q.isFetching) || popularQ.some((q) => q.isFetching);
+  const isError = albumResults.some((q) => q.isError) || popularQ.some((q) => q.isError);
 
   return {
     albumsBySection,
@@ -156,13 +150,13 @@ export function useHomeContent(
     bengaliAlbums: albumsBySection.bengali,
     marathiAlbums: albumsBySection.marathi,
     englishAlbums: albumsBySection.english,
-    trendingSongs,
+    popularSongs,
     isInitialLoading,
     isFetching,
     isError,
     refetch: () => {
       albumResults.forEach((q) => void q.refetch());
-      trendingQ.forEach((q) => void q.refetch());
+      popularQ.forEach((q) => void q.refetch());
     },
   };
 }

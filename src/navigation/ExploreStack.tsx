@@ -3,6 +3,7 @@ import type { ExploreStackParamList } from './types';
 import { ExploreScreen } from '../screens/ExploreScreen';
 import { AlbumScreen } from '../screens/AlbumScreen';
 import { ArtistScreen } from '../screens/ArtistScreen';
+import { SearchPlaylistScreen } from '../screens/SearchPlaylistScreen';
 import { SearchResultsScreen } from '../screens/SearchResultsScreen';
 import { defaultNativeStackScreenOptions } from './stackScreenOptions';
 
@@ -14,6 +15,7 @@ export function ExploreStack() {
       <Stack.Screen name="ExploreMain" component={ExploreScreen} />
       <Stack.Screen name="Album" component={AlbumScreen} />
       <Stack.Screen name="Artist" component={ArtistScreen} />
+      <Stack.Screen name="SearchPlaylist" component={SearchPlaylistScreen} />
       <Stack.Screen name="SearchResults" component={SearchResultsScreen} />
     </Stack.Navigator>
   );

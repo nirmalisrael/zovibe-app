@@ -3,12 +3,13 @@ import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { MoodType } from '../constants/moods';
+import type { LanguageFilterId } from '../constants/languages';
 
 export type HomeStackParamList = {
   HomeMain: undefined;
   Album: { albumId: string };
   Artist: { artistId: string };
-  SearchResults: { query: string; title?: string };
+  SearchResults: { query: string; title?: string; language?: LanguageFilterId };
   Mood: { mood: MoodType };
 };
 
@@ -16,7 +17,8 @@ export type ExploreStackParamList = {
   ExploreMain: undefined;
   Album: { albumId: string };
   Artist: { artistId: string };
-  SearchResults: { query: string; title?: string };
+  SearchPlaylist: { playlistId: string };
+  SearchResults: { query: string; title?: string; language?: LanguageFilterId };
 };
 
 export type LibraryStackParamList = {

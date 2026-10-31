@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import {
-  ScrollView,
+  FlatList,
   View,
   Text,
   StyleSheet,
@@ -18,6 +18,7 @@ import { MoodPillRow } from '../components/home/MoodPillRow';
 import { SectionCarousel } from '../components/home/SectionCarousel';
 import { AlbumCard } from '../components/cards/AlbumCard';
 import { SongRow } from '../components/cards/SongRow';
+import type { JioSaavnSong } from '../api/jiosaavn';
 import { useHomeContent } from '../hooks/useHomeContent';
 import { usePlayer } from '../hooks/usePlayer';
 import { useLikedSongs } from '../hooks/useLikedSongs';
@@ -48,6 +49,12 @@ function showHomeLanguageSection(section: HomeAlbumSection, filter: LanguageFilt
 /** Carousels for Indian languages + English, in order; English is shown after Trending below. */
 const HOME_SECTIONS_BEFORE_TRENDING = HOME_ALBUM_SECTIONS.filter((s) => s !== 'english');
 
+type HomeFeedItem =
+  | { type: 'albumSection'; section: HomeAlbumSection }
+  | { type: 'popularHeader' }
+  | { type: 'popularEmpty' }
+  | { type: 'popularSong'; song: JioSaavnSong; index: number };
+
 export function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
   const user = useAuthStore((s) => s.user);
@@ -67,7 +74,7 @@ export function HomeScreen() {
 
   const {
     albumsBySection,
-    trendingSongs,
+    popularSongs,
     isInitialLoading,
     isFetching,
     isError,
@@ -111,16 +118,145 @@ export function HomeScreen() {
 
   const refreshing = isFetching && !isInitialLoading;
 
-  const trendingQueue = !isInitialLoading && !isError ? trendingSongs.slice(0, 8) : [];
+  const popularQueue = !isInitialLoading && !isError ? popularSongs.slice(0, 8) : [];
+
+  const feedItems = useMemo<HomeFeedItem[]>(() => {
+    if (isInitialLoading || isError) return [];
+
+    const items: HomeFeedItem[] = visibleSections
+      .filter((section) => albumsBySection[section].length > 0)
+      .map((section) => ({ type: 'albumSection', section }));
+
+    items.push({ type: 'popularHeader' });
+    popularQueue.forEach((song, index) => {
+      items.push({ type: 'popularSong', song, index });
+    });
+    if (popularQueue.length === 0) {
+      items.push({ type: 'popularEmpty' });
+    }
+
+    if (showEnglishCarousel && albumsBySection.english.length > 0) {
+      items.push({ type: 'albumSection', section: 'english' });
+    }
+
+    return items;
+  }, [
+    albumsBySection,
+    isError,
+    isInitialLoading,
+    showEnglishCarousel,
+    popularQueue,
+    visibleSections,
+  ]);
 
   return (
     <ScreenErrorBoundary>
       <ScreenWrapper style={styles.screenNoPad}>
-        <ScrollView
-          contentContainerStyle={styles.scroll}
+        <FlatList
+          data={feedItems}
+          keyExtractor={(item) =>
+            item.type === 'albumSection'
+              ? `albums-${item.section}`
+              : item.type === 'popularSong'
+                ? `popular-${item.song.id}`
+                : item.type
+          }
+          renderItem={({ item }) => {
+            if (item.type === 'albumSection') {
+              const { section } = item;
+              const meta = HOME_CAROUSEL_META[section];
+              return (
+                <SectionCarousel
+                  title={meta.carouselTitle}
+                  onSeeAll={() =>
+                    navigation.navigate('SearchResults', {
+                      query: HOME_SEEDS[section][0],
+                      title: meta.searchTitle,
+                      language: section,
+                    })
+                  }
+                >
+                  {albumsBySection[section].map((album) => (
+                    <AlbumCard
+                      key={album.id}
+                      album={album}
+                      onPress={() => navigation.navigate('Album', { albumId: album.id })}
+                    />
+                  ))}
+                </SectionCarousel>
+              );
+            }
+
+            if (item.type === 'popularHeader') {
+              return (
+                <View style={styles.trendHead}>
+                  <Text style={styles.trendTitle}>Popular picks</Text>
+                  <Pressable
+                    onPress={() =>
+                      navigation.navigate('SearchResults', {
+                        query: HOME_SEEDS.popular[0],
+                        title: 'Popular picks',
+                        language: homeFilter,
+                      })
+                    }
+                    accessibilityRole="button"
+                    accessibilityLabel="See all popular songs"
+                    hitSlop={8}
+                  >
+                    <Text style={styles.seeAll}>See all →</Text>
+                  </Pressable>
+                </View>
+              );
+            }
+
+            if (item.type === 'popularEmpty') {
+              return (
+                <Text style={styles.emptyHint}>
+                  No popular songs right now. Pull to refresh.
+                </Text>
+              );
+            }
+
+            const { song, index } = item;
+            return (
+              <SongRow
+                song={song}
+                onPress={() => {
+                  void playQueue(popularQueue, index);
+                }}
+                liked={isLiked(song.id)}
+                onToggleLike={() => {
+                  if (!user) return;
+                  toggleLike(song.id, isLiked(song.id));
+                }}
+                showLike={!!user}
+                showAddToPlaylist={!!user}
+                onAddToPlaylist={() => openAddToPlaylist(song)}
+              />
+            );
+          }}
+          ListHeaderComponent={
+            <View>
+              <GreetingHeader initials={initials} onAvatarPress={onAvatarPress} />
+              <Text style={styles.greet}>{greetingLine()}</Text>
+              <Text style={styles.sectionLabel}>Your Vibe</Text>
+              <MoodPillRow onSelect={onMoodSelect} />
+            </View>
+          }
+          ListEmptyComponent={
+            isInitialLoading ? (
+              <HomeFeedSkeleton />
+            ) : isError ? (
+              <ErrorState message="Could not load home" onRetry={onRefetch} />
+            ) : null
+          }
+          contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           accessibilityLabel="Home feed"
+          initialNumToRender={4}
+          maxToRenderPerBatch={4}
+          windowSize={7}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -130,111 +266,7 @@ export function HomeScreen() {
               progressBackgroundColor={colors.bg.secondary}
             />
           }
-        >
-          <GreetingHeader initials={initials} onAvatarPress={onAvatarPress} />
-          <Text style={styles.greet}>{greetingLine()}</Text>
-
-          <Text style={styles.sectionLabel}>Your Vibe</Text>
-          <MoodPillRow onSelect={onMoodSelect} />
-
-          {isInitialLoading ? <HomeFeedSkeleton /> : null}
-          {!isInitialLoading && isError ? (
-            <ErrorState message="Could not load home" onRetry={onRefetch} />
-          ) : null}
-
-          {!isInitialLoading &&
-            !isError &&
-            visibleSections.map((section) => {
-              const meta = HOME_CAROUSEL_META[section];
-              const albums = albumsBySection[section];
-              if (!albums.length) return null;
-              return (
-                <SectionCarousel
-                  key={section}
-                  title={meta.carouselTitle}
-                  onSeeAll={() =>
-                    navigation.navigate('SearchResults', {
-                      query: HOME_SEEDS[section][0],
-                      title: meta.searchTitle,
-                    })
-                  }
-                >
-                  {albums.map((a) => (
-                    <AlbumCard
-                      key={a.id}
-                      album={a}
-                      onPress={() => navigation.navigate('Album', { albumId: a.id })}
-                    />
-                  ))}
-                </SectionCarousel>
-              );
-            })}
-
-          {!isInitialLoading && !isError ? (
-            <>
-              <View style={styles.trendHead}>
-                <Text style={styles.trendTitle}>Trending Now</Text>
-                <Pressable
-                  onPress={() =>
-                    navigation.navigate('SearchResults', {
-                      query: HOME_SEEDS.trending[0],
-                      title: 'Trending',
-                    })
-                  }
-                  accessibilityRole="button"
-                  accessibilityLabel="See all trending tracks"
-                  hitSlop={8}
-                >
-                  <Text style={styles.seeAll}>See all →</Text>
-                </Pressable>
-              </View>
-              {trendingQueue.length > 0 ? (
-                trendingQueue.map((s, index) => (
-                  <SongRow
-                    key={s.id}
-                    song={s}
-                    onPress={() => {
-                      void playQueue(trendingQueue, index);
-                    }}
-                    liked={isLiked(s.id)}
-                    onToggleLike={() => {
-                      if (!user) return;
-                      toggleLike(s.id, isLiked(s.id));
-                    }}
-                    showLike={!!user}
-                    showAddToPlaylist={!!user}
-                    onAddToPlaylist={() => openAddToPlaylist(s)}
-                  />
-                ))
-              ) : (
-                <Text style={styles.emptyHint}>No trending tracks right now. Pull to refresh.</Text>
-              )}
-            </>
-          ) : null}
-
-          {!isInitialLoading &&
-            !isError &&
-            showEnglishCarousel &&
-            albumsBySection.english.length > 0 ? (
-            <SectionCarousel
-              title={HOME_CAROUSEL_META.english.carouselTitle}
-              onSeeAll={() =>
-                navigation.navigate('SearchResults', {
-                  query: HOME_SEEDS.english[0],
-                  title: HOME_CAROUSEL_META.english.searchTitle,
-                })
-              }
-            >
-              {albumsBySection.english.map((a) => (
-                <AlbumCard
-                  key={a.id}
-                  album={a}
-                  onPress={() => navigation.navigate('Album', { albumId: a.id })}
-                />
-              ))}
-            </SectionCarousel>
-          ) : null}
-        </ScrollView>
+        />
       </ScreenWrapper>
     </ScreenErrorBoundary>
   );
@@ -242,7 +274,7 @@ export function HomeScreen() {
 
 const styles = StyleSheet.create({
   screenNoPad: { paddingHorizontal: 0 },
-  scroll: {
+  list: {
     flexGrow: 1,
     paddingHorizontal: layout.screenPadding,
     paddingBottom: 120,

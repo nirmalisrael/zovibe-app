@@ -5,8 +5,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { MOODS, type MoodType } from '../constants/moods';
-import { getLanguageQuerySuffix } from '../constants/languages';
-import { searchAll } from '../api/jiosaavn';
+import { songMatchesLanguageFilter } from '../constants/languages';
+import { searchSongs } from '../api/jiosaavn';
 import type { JioSaavnSong } from '../api/jiosaavn';
 import { ScreenWrapper } from '../components/ui/ScreenWrapper';
 import { SongRowSkeleton } from '../components/ui/PageSkeletons';
@@ -24,7 +24,6 @@ export function MoodScreen() {
   const { mood } = route.params as { mood: MoodType };
   const meta = MOODS[mood];
   const homeLanguageFilter = useSettingsStore((s) => s.homeLanguageFilter);
-  const langSuffix = getLanguageQuerySuffix(homeLanguageFilter);
   const { playQueue } = usePlayer();
   const user = useAuthStore((s) => s.user);
   const { isLiked, toggleLike } = useLikedSongs();
@@ -41,16 +40,12 @@ export function MoodScreen() {
     }
   }, [queryClient, mood]);
 
-  /** Same discovery path as Explore genres + SearchResults (`/api/search`), not `/api/search/songs` (shape varies on some hosts). */
+  /** Search the full song endpoint so mood results include playback URLs. */
   const results = useQueries({
     queries: meta.searches.map((q) => {
-      const fullQ = `${q}${langSuffix}`.trim();
       return {
-        queryKey: ['mood', mood, homeLanguageFilter, fullQ] as const,
-        queryFn: async () => {
-          const { songs } = await searchAll(fullQ);
-          return songs;
-        },
+        queryKey: ['mood', mood, q] as const,
+        queryFn: ({ signal }) => searchSongs(q, 0, 20, signal),
         staleTime: 5 * 60 * 1000,
       };
     }),
@@ -60,7 +55,9 @@ export function MoodScreen() {
   for (const r of results) {
     const songs = r.data ?? [];
     for (const s of songs) {
-      if (!map.has(s.id)) map.set(s.id, s);
+      if (songMatchesLanguageFilter(s, homeLanguageFilter) && !map.has(s.id)) {
+        map.set(s.id, s);
+      }
     }
   }
   const list = [...map.values()];

@@ -1,79 +1,39 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useQueries } from '@tanstack/react-query';
-import {
-  searchAlbums,
-  searchArtists,
-  searchSongs,
-  type JioSaavnAlbumListItem,
-  type JioSaavnArtistListItem,
-  type JioSaavnSong,
-} from '../api/jiosaavn';
+import { useQuery } from '@tanstack/react-query';
+import { searchSongs } from '../api/jiosaavn';
+import { songMatchesLanguageFilter, type LanguageFilterId } from '../constants/languages';
+import { queryKeys } from './queryKeys';
 
-export function useSearch(debounceMs = 300) {
+export function useSearch(language: LanguageFilterId, debounceMs = 350, enabled = true) {
   const [raw, setRaw] = useState('');
   const [debounced, setDebounced] = useState('');
 
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(raw.trim()), debounceMs);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setDebounced(raw.trim()), debounceMs);
+    return () => clearTimeout(timer);
   }, [raw, debounceMs]);
 
-  const enabled = debounced.length >= 2;
-  const [songsQ, albumsQ, artistsQ] = useQueries({
-    queries: [
-      {
-        queryKey: ['search', 'songs', debounced],
-        queryFn: () => searchSongs(debounced, 0, 20),
-        enabled,
-        staleTime: 5 * 60 * 1000,
-      },
-      {
-        queryKey: ['search', 'albums', debounced],
-        queryFn: () => searchAlbums(debounced, 0, 20),
-        enabled,
-        staleTime: 5 * 60 * 1000,
-      },
-      {
-        queryKey: ['search', 'artists', debounced],
-        queryFn: () => searchArtists(debounced, 0, 20),
-        enabled,
-        staleTime: 5 * 60 * 1000,
-      },
-    ],
+  const searchQuery = useQuery({
+    queryKey: queryKeys.searchSongs(debounced),
+    queryFn: ({ signal }) => searchSongs(debounced, 0, 20, signal),
+    enabled: enabled && debounced.length >= 2,
+    staleTime: 5 * 60 * 1000,
   });
 
-  const data = useMemo<{
-    songs: JioSaavnSong[];
-    albums: JioSaavnAlbumListItem[];
-    artists: JioSaavnArtistListItem[];
-  }>(
-    () => ({
-      songs: songsQ.data ?? [],
-      albums: albumsQ.data ?? [],
-      artists: artistsQ.data ?? [],
-    }),
-    [songsQ.data, albumsQ.data, artistsQ.data]
-  );
-
-  const isPending = songsQ.isPending || albumsQ.isPending || artistsQ.isPending;
-  const isFetching = songsQ.isFetching || albumsQ.isFetching || artistsQ.isFetching;
-  const isError = songsQ.isError || albumsQ.isError || artistsQ.isError;
-  const error = songsQ.error ?? albumsQ.error ?? artistsQ.error ?? null;
-  const refetch = () => {
-    void songsQ.refetch();
-    void albumsQ.refetch();
-    void artistsQ.refetch();
-  };
+  const songs = useMemo(() => {
+    const results = searchQuery.data ?? [];
+    return results.filter((song) => songMatchesLanguageFilter(song, language));
+  }, [language, searchQuery.data]);
 
   return {
     raw,
     setRaw,
     debounced,
-    data,
-    isPending,
-    isFetching,
-    isError,
-    error,
-    refetch,
+    songs,
+    isPending: searchQuery.isPending,
+    isFetching: searchQuery.isFetching,
+    isError: searchQuery.isError,
+    isSuccess: searchQuery.isSuccess,
+    refetch: searchQuery.refetch,
   };
 }

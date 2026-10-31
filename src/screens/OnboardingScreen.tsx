@@ -97,6 +97,17 @@ export function OnboardingScreen() {
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
         >
+          {prefsOnly ? (
+            <Pressable
+              onPress={() => navigation.goBack()}
+              hitSlop={12}
+              style={({ pressed }) => [styles.backBtn, pressed && styles.backBtnPressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+            >
+              <Ionicons name="chevron-back" size={22} color={colors.text.primary} />
+            </Pressable>
+          ) : null}
           <Text style={styles.kicker}>{prefsOnly ? 'Preferences' : 'Welcome'}</Text>
           <Text style={styles.title}>What do you want to hear?</Text>
           <Text style={styles.subtitle}>
@@ -187,6 +198,18 @@ const styles = StyleSheet.create({
   scroll: {
     paddingBottom: spacing[10],
   },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    backgroundColor: colors.bg.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing[2],
+  },
+  backBtnPressed: { opacity: 0.85 },
   kicker: {
     fontFamily: fonts.medium,
     fontSize: fontSize.sm,

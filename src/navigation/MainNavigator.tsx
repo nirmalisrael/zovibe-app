@@ -48,7 +48,7 @@ const tabBarShell = StyleSheet.create({
 export function MainNavigator() {
   return (
     <Tab.Navigator
-      tabBar={(p) => <TabBarWithMini {...p} />}
+      tabBar={(p: BottomTabBarProps) => <TabBarWithMini {...p} />}
       screenOptions={{
         headerShown: false,
         /** Cross-fade between tabs — RN Animated + native driver, low cost */

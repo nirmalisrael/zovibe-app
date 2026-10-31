@@ -21,6 +21,6 @@ export function getPrimaryArtistNames(song: {
   return 'Unknown artist';
 }
 
-export function getAlbumNameSafe(song: { album?: { name?: string } }): string {
+export function getAlbumNameSafe(song: { album?: { name?: string | null } }): string {
   return typeof song.album?.name === 'string' && song.album.name ? song.album.name : 'Unknown album';
 }

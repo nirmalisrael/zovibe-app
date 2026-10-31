@@ -147,7 +147,7 @@ export function getHomeAlbumSectionsFromLangPrefs(langPrefs: string[]): HomeAlbu
   return HOME_ALBUM_SECTIONS.filter((sec) => set.has(sec));
 }
 
-/** Lowercase fragments to match JioSaavn `language` on songs/albums when filtering trending/home. */
+/** Lowercase fragments to match JioSaavn `language` on songs/albums when filtering Home. */
 export function getLanguageMatchTokensForPrefs(langPrefs: string[]): string[] | null {
   const s = sanitizeLangPrefs(langPrefs);
   if (s.length === 0) return null;
@@ -162,6 +162,25 @@ export function getLanguageMatchTokensForPrefs(langPrefs: string[]): string[] | 
     }
   }
   return tokens.size > 0 ? [...tokens] : null;
+}
+
+export function songMatchesLanguageFilter(
+  song: { language?: string | null },
+  filter: LanguageFilterId
+): boolean {
+  if (filter === 'all') return true;
+  return matchesLanguagePreferences(song.language, [filter]);
+}
+
+export function matchesLanguagePreferences(
+  languageValue: string | null | undefined,
+  langPrefs: string[]
+): boolean {
+  const tokens = getLanguageMatchTokensForPrefs(langPrefs);
+  if (!tokens) return true;
+  if (!languageValue) return true;
+  const language = languageValue.toLowerCase();
+  return tokens?.some((token) => language.includes(token)) ?? false;
 }
 
 /**

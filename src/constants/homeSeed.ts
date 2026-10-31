@@ -16,7 +16,7 @@ export const HOME_ALBUM_SECTIONS = [
 
 export type HomeAlbumSection = (typeof HOME_ALBUM_SECTIONS)[number];
 
-export const HOME_SEEDS: Record<HomeAlbumSection | 'trending', readonly string[]> = {
+export const HOME_SEEDS: Record<HomeAlbumSection | 'popular', readonly string[]> = {
   tamil: ['anirudh', 'sid sriram', 'yuvan shankar raja', 'vijay antony', 'harris jayaraj'],
   hindi: ['arijit singh', 'pritam', 'ar rahman', 'atif aslam', 'shankar ehsaan loy'],
   telugu: ['ss thaman', 'devi sri prasad', 'ram miryala', 'manisharma', 'mickey j meyer'],
@@ -26,14 +26,11 @@ export const HOME_SEEDS: Record<HomeAlbumSection | 'trending', readonly string[]
   bengali: ['anupam roy', 'arijit singh', 'jeet gannguli', 'pritam', 'imran mahmudul'],
   marathi: ['ajay atul', 'avdhoot gupte', 'nilesh moharir', 'sameer kulkarni', 'amitraj'],
   english: ['the weeknd', 'ed sheeran', 'coldplay', 'imagine dragons'],
-  /**
-   * "Trending" is approximated from "latest/new release" discovery searches
-   * (no dedicated global trending endpoint in current API spec).
-   */
-  trending: ['new release songs india'],
+  /** Latest-release discovery queries, ranked locally by the API's play-count metadata. */
+  popular: ['new release songs india'],
 };
 
-const TRENDING_DISCOVERY_BY_SECTION: Record<HomeAlbumSection, readonly string[]> = {
+const POPULAR_DISCOVERY_BY_SECTION: Record<HomeAlbumSection, readonly string[]> = {
   tamil: ['latest tamil songs', 'new tamil songs'],
   hindi: ['latest hindi songs', 'new bollywood songs'],
   telugu: ['latest telugu songs', 'new telugu songs'],
@@ -46,16 +43,16 @@ const TRENDING_DISCOVERY_BY_SECTION: Record<HomeAlbumSection, readonly string[]>
 };
 
 /**
- * Build trending discovery keywords from allowed sections (typically user language prefs).
+ * Build release-discovery keywords from allowed sections (typically user language prefs).
  * Falls back to a general India new-release query when prefs are empty.
  */
-export function buildTrendingDiscoveryTerms(
+export function buildPopularDiscoveryTerms(
   sections: readonly HomeAlbumSection[] | null
 ): string[] {
-  if (!sections || sections.length === 0) return [...HOME_SEEDS.trending];
+  if (!sections || sections.length === 0) return [...HOME_SEEDS.popular];
   const terms: string[] = [];
   for (const section of sections) {
-    terms.push(...TRENDING_DISCOVERY_BY_SECTION[section]);
+    terms.push(...POPULAR_DISCOVERY_BY_SECTION[section]);
   }
   return [...new Set(terms)];
 }
